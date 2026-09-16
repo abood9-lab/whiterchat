@@ -15,6 +15,7 @@ import { useAuth } from "@/lib/auth";
 import { Plus, Play, Loader2, RefreshCw } from "lucide-react";
 import { apiUrl } from "@/lib/api-url";
 import { Button } from "@/components/ui/button";
+import { InstallPwaModal } from "@/components/InstallPwaModal";
 
 function PostSkeleton() {
   return (
@@ -246,6 +247,8 @@ export default function Home() {
           <StoryCreator onClose={() => setCreatorOpen(false)} onSuccess={handleStorySuccess} />
         )}
       </AnimatePresence>
+
+      <InstallPwaModal />
     </>
   );
 }

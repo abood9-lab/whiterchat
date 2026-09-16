@@ -53,6 +53,7 @@ import { CreatorDashboardSection } from "@/components/settings/CreatorDashboardS
 import { AccountActionsSection } from "@/components/settings/AccountActionsSection";
 import { MultiAccountSection } from "@/components/settings/MultiAccountSection";
 import { FeedbackCenterSection } from "@/components/settings/FeedbackCenterSection";
+import { InstallPwaModal } from "@/components/InstallPwaModal";
 
 export type SettingsTab =
   | "profile"
@@ -263,6 +264,7 @@ export default function SettingsPage() {
     return "profile";
   });
   const [searchQuery, setSearchQuery] = useState("");
+  const [pwaModalOpen, setPwaModalOpen] = useState(false);
   const [mobileSubPageOpen, setMobileSubPageOpen] = useState(() => {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -520,6 +522,27 @@ export default function SettingsPage() {
         <div className="grid grid-cols-12 gap-6 bg-card border border-border rounded-3xl p-6 shadow-sm min-h-[700px]">
           {/* Navigation Sidebar */}
           <div className="col-span-4 border-r border-border pr-4 space-y-6">
+            {/* Install App / Download PWA Card */}
+            <div className="p-4 rounded-2xl bg-primary/10 border border-primary/20 space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary text-primary-foreground shadow-sm">
+                  <Download className="w-5 h-5" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-xs text-foreground">تثبيت تطبيق WhiterChat</h4>
+                  <p className="text-[11px] text-muted-foreground">احصل على التطبيق على جهازك</p>
+                </div>
+              </div>
+              <Button
+                onClick={() => setPwaModalOpen(true)}
+                size="sm"
+                className="w-full h-9 text-xs font-bold rounded-xl gap-2 shadow-sm"
+              >
+                <Download className="w-3.5 h-3.5" />
+                تثبيت أو تنزيل التطبيق
+              </Button>
+            </div>
+
             {filteredGroups.length === 0 ? (
               <div className="p-8 text-center text-xs text-muted-foreground">
                 No settings match "{searchQuery}"
@@ -570,6 +593,8 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <InstallPwaModal forceOpen={pwaModalOpen} onClose={() => setPwaModalOpen(false)} />
     </div>
   );
 }
