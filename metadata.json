@@ -1,0 +1,6 @@
+{
+  "name": "WhiterChat – Social Discovery, Posts, Stories & Viral Reels",
+  "description": "Discover viral reels, trending creator posts, real-time chats, and creative photo sharing with intelligent ranking on WhiterChat.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
