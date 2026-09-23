@@ -61,12 +61,13 @@ export function CreateGroupModal({ onClose, onCreate, addToGroupId, existingMemb
     setIsSearching(true);
     searchTimerRef.current = setTimeout(() => {
       apiGet(`groups/user-search?q=${encodeURIComponent(searchQuery)}`)
-        .then((results: UserResult[]) =>
-          setSearchResults(results.filter(u =>
-            !selectedUsers.some(s => s.id === u.id) &&
-            !(existingMemberIds ?? []).includes(u.id)
-          ))
-        )
+        .then((results: UserResult[]) => {
+          const safeResults = (Array.isArray(results) ? results : []).filter(u => Boolean(u && u.username && u.id));
+          setSearchResults(safeResults.filter(u =>
+            !selectedUsers.some(s => s && s.id === u.id) &&
+            !(Array.isArray(existingMemberIds) ? existingMemberIds : []).includes(u.id)
+          ));
+        })
         .catch(() => {})
         .finally(() => setIsSearching(false));
     }, 250);
@@ -76,7 +77,7 @@ export function CreateGroupModal({ onClose, onCreate, addToGroupId, existingMemb
     if (selectedUsers.length === 0 || !onAddMembers) return;
     setIsCreating(true); setError(null);
     try {
-      await onAddMembers(selectedUsers.map(u => u.username));
+      await onAddMembers(selectedUsers.filter(u => u && u.username).map(u => u.username));
     } catch (err: any) {
       setError(err?.message ?? "Failed to add members");
       setIsCreating(false);
@@ -84,11 +85,11 @@ export function CreateGroupModal({ onClose, onCreate, addToGroupId, existingMemb
   };
 
   const addUser = (u: UserResult) => {
-    if (!selectedUsers.some(s => s.id === u.id)) setSelectedUsers(p => [...p, u]);
+    if (u && u.id && !selectedUsers.some(s => s && s.id === u.id)) setSelectedUsers(p => [...p, u]);
     setSearchQuery(""); setSearchResults([]);
   };
 
-  const removeUser = (id: string) => setSelectedUsers(p => p.filter(u => u.id !== id));
+  const removeUser = (id: string) => setSelectedUsers(p => p.filter(u => u && u.id !== id));
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -104,13 +105,14 @@ export function CreateGroupModal({ onClose, onCreate, addToGroupId, existingMemb
 
   const handleCreate = async () => {
     if (!groupName.trim()) { setError("Group name is required"); return; }
-    if (selectedUsers.length === 0) { setError("Add at least one member"); return; }
+    const validMembers = selectedUsers.filter(u => u && u.username).map(u => u.username);
+    if (validMembers.length === 0) { setError("Add at least one member"); return; }
     setIsCreating(true); setError(null);
     try {
       await onCreate({
         name: groupName.trim(),
         description: groupDescription.trim(),
-        memberUsernames: selectedUsers.map(u => u.username),
+        memberUsernames: validMembers,
         avatarData: avatarData ?? undefined,
       });
     } catch (err: any) {
@@ -120,12 +122,17 @@ export function CreateGroupModal({ onClose, onCreate, addToGroupId, existingMemb
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4"
+      onClick={onClose}
+    >
       <div
-        className="bg-card rounded-2xl shadow-2xl w-full max-w-md flex flex-col border border-border overflow-hidden"
-        style={{ maxHeight: "min(90vh, 640px)" }}
+        className="bg-card rounded-t-[28px] sm:rounded-2xl shadow-2xl w-full max-w-none sm:max-w-md flex flex-col border-t sm:border border-border overflow-hidden max-h-[90dvh] sm:max-h-[min(90vh,640px)] pb-[max(1rem,calc(1rem+env(safe-area-inset-bottom)))] sm:pb-0"
         onClick={e => e.stopPropagation()}
       >
+        {/* Mobile handle */}
+        <div className="mx-auto mt-2.5 -mb-1 h-1.5 w-12 rounded-full bg-muted-foreground/30 sm:hidden shrink-0 pointer-events-none" />
+
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border shrink-0">
           <div className="flex items-center gap-2">

@@ -7,14 +7,14 @@ import { format } from "date-fns";
 import type { ChatMessage } from "./MessageBubble";
 
 interface OtherUser {
-  id: string;
-  username: string;
-  fullName: string;
+  id?: string;
+  username?: string;
+  fullName?: string;
   avatarUrl?: string | null;
 }
 
 interface Props {
-  otherUser: OtherUser;
+  otherUser?: OtherUser | null;
   isOnline: boolean;
   disappearAfter: string | null;
   isMuted: boolean;
@@ -97,7 +97,7 @@ export function ConversationInfoPanel({
           {pinnedMessages.map(m => (
             <div key={m.id} className="px-4 py-3">
               <div className="text-[10px] text-muted-foreground mb-1">
-                {m.senderId === myId ? "You" : otherUser.username} ·{" "}
+                {m.senderId === myId ? "You" : (otherUser?.username || "User")} ·{" "}
                 {format(new Date(m.createdAt), "MMM d, h:mm a")}
               </div>
               <p className="text-sm">{m.text ?? (m.mediaType ? `[${m.mediaType}]` : "")}</p>
@@ -118,7 +118,7 @@ export function ConversationInfoPanel({
           {starredMessages.map(m => (
             <div key={m.id} className="px-4 py-3">
               <div className="text-[10px] text-muted-foreground mb-1">
-                {m.senderId === myId ? "You" : otherUser.username} ·{" "}
+                {m.senderId === myId ? "You" : (otherUser?.username || "User")} ·{" "}
                 {format(new Date(m.createdAt), "MMM d, h:mm a")}
               </div>
               <p className="text-sm">{m.text ?? (m.mediaType ? `[${m.mediaType}]` : "")}</p>
@@ -164,7 +164,7 @@ export function ConversationInfoPanel({
     return (
       <PanelShell onBack={() => setSection("main")} onClose={onClose} title="Restrict Messages">
         <div className="px-4 py-2 text-xs text-muted-foreground mb-2">
-          @{otherUser.username} won't be able to send you messages for the selected duration.
+          @{otherUser?.username || "User"} won't be able to send you messages for the selected duration.
         </div>
         <div className="divide-y divide-border">
           {TIMEOUT_OPTIONS.map(opt => (
@@ -189,35 +189,41 @@ export function ConversationInfoPanel({
   }
 
   // Main section
+  const displayName = otherUser?.fullName || otherUser?.username || "User";
+  const displayUsername = otherUser?.username || "user";
+  const avatarFallback = (displayUsername[0] || "U").toUpperCase();
+
   return (
     <PanelShell onBack={null} onClose={onClose} title="">
       {/* User hero */}
       <div className="flex flex-col items-center py-6 px-4 border-b border-border">
         <div className="relative mb-3">
           <Avatar className="h-20 w-20">
-            <AvatarImage src={otherUser.avatarUrl || undefined} />
+            <AvatarImage src={otherUser?.avatarUrl || undefined} />
             <AvatarFallback className="text-2xl font-bold">
-              {otherUser.username[0]?.toUpperCase()}
+              {avatarFallback}
             </AvatarFallback>
           </Avatar>
           {isOnline && (
             <span className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-card" />
           )}
         </div>
-        <h2 className="font-bold text-lg">{otherUser.fullName || otherUser.username}</h2>
-        <p className="text-sm text-muted-foreground">@{otherUser.username}</p>
+        <h2 className="font-bold text-lg">{displayName}</h2>
+        <p className="text-sm text-muted-foreground">@{displayUsername}</p>
         {isOnline && (
           <span className="text-xs text-green-500 mt-1 font-medium">Active now</span>
         )}
-        <Button
-          variant="outline"
-          size="sm"
-          className="mt-3 rounded-full gap-2 text-xs"
-          onClick={onNavigateToProfile}
-        >
-          <ExternalLink className="w-3.5 h-3.5" />
-          View Profile
-        </Button>
+        {otherUser?.username && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-3 rounded-full gap-2 text-xs"
+            onClick={onNavigateToProfile}
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            View Profile
+          </Button>
+        )}
       </div>
 
       {/* Quick action buttons */}
@@ -286,7 +292,7 @@ export function ConversationInfoPanel({
             onClick={onUnblock}
           >
             <ShieldOff className="w-5 h-5 text-muted-foreground shrink-0" />
-            <span className="flex-1 text-sm font-medium">Unblock @{otherUser.username}</span>
+            <span className="flex-1 text-sm font-medium">Unblock @{displayUsername}</span>
           </button>
         ) : (
           <button
@@ -294,7 +300,7 @@ export function ConversationInfoPanel({
             onClick={onBlock}
           >
             <Ban className="w-5 h-5 text-destructive shrink-0" />
-            <span className="flex-1 text-sm font-medium text-destructive">Block @{otherUser.username}</span>
+            <span className="flex-1 text-sm font-medium text-destructive">Block @{displayUsername}</span>
           </button>
         )}
       </div>

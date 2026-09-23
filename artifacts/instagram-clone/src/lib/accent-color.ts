@@ -1,8 +1,8 @@
 export const DEFAULT_ACCENT_HEX = "#0095f6";
-export const ACCENT_STORAGE_KEY = "whiterchat-accent-color";
+export const ACCENT_STORAGE_KEY = "pixlr-accent-color";
 
 export const PRESET_COLORS = [
-  { name: "WhiterChat Blue", hex: "#0095f6" },
+  { name: "Instagram Blue", hex: "#0095f6" },
   { name: "Discord Blurple", hex: "#5865f2" },
   { name: "Purple", hex: "#9333ea" },
   { name: "Pink", hex: "#ec4899" },

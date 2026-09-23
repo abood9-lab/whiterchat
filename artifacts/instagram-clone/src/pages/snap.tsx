@@ -29,7 +29,7 @@ import {
 const MODEL_URL = `${(import.meta.env.BASE_URL ?? "/").replace(/\/$/, "")}/weights`;
 
 async function apiRequest(path: string, opts: RequestInit = {}) {
-  const token = localStorage.getItem("whiterchat_token") ?? "";
+  const token = localStorage.getItem("pixlr_token") ?? "";
   const r = await fetch(apiUrl(`/api/${path}`), {
     ...opts,
     headers: {
@@ -71,8 +71,8 @@ interface AlbumItem {
   timestamp: string;
 }
 
-const ALBUM_KEY = "whiterchat_album";
-const FAV_FILTERS_KEY = "whiterchat_fav_filters";
+const ALBUM_KEY = "pixlr_album";
+const FAV_FILTERS_KEY = "pixlr_fav_filters";
 
 export default function SnapPage() {
   const { user } = useAuth();
@@ -812,10 +812,10 @@ export default function SnapPage() {
     const a = document.createElement("a");
     if (capturedVideo) {
       a.href = capturedVideo.url;
-      a.download = `whiterchat-snap-${Date.now()}.webm`;
+      a.download = `pixlr-snap-${Date.now()}.webm`;
     } else if (captured) {
       a.href = captured;
-      a.download = `whiterchat-snap-${Date.now()}.jpg`;
+      a.download = `pixlr-snap-${Date.now()}.jpg`;
     } else {
       return;
     }

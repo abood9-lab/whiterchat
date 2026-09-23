@@ -131,7 +131,7 @@ export function FloatingChat() {
 
   // All conversations excluding vault
   const conversations = useMemo(() => {
-    return (conversationsData as any[] ?? []).filter((c: any) => !c.isVault);
+    return (Array.isArray(conversationsData) ? (conversationsData as any[]) : []).filter((c: any) => !c.isVault);
   }, [conversationsData]);
 
   // Active conversation object

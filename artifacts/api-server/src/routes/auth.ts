@@ -181,7 +181,7 @@ router.post("/auth/register", authLimiter, async (req, res): Promise<void> => {
   // Store or update pending verification (expires in 10 minutes)
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   await OtpVerification.deleteMany({ email, type: "register" });
-  await OtpVerification.create({
+  const pendingRecord = await OtpVerification.create({
     email,
     code: codeHash,
     type: "register",
@@ -192,9 +192,18 @@ router.post("/auth/register", authLimiter, async (req, res): Promise<void> => {
     },
     expiresAt,
     attempts: 0,
+    lastSentAt: new Date(),
   });
 
-  await sendOtpEmail({ email, code, type: "register" });
+  try {
+    await sendOtpEmail({ email, code, type: "register" });
+  } catch (err: any) {
+    await OtpVerification.deleteOne({ _id: pendingRecord._id });
+    res.status(500).json({
+      error: "Failed to deliver verification email. Please verify your email address or try again in a few moments.",
+    });
+    return;
+  }
 
   res.status(200).json({
     pendingVerification: true,
@@ -202,6 +211,11 @@ router.post("/auth/register", authLimiter, async (req, res): Promise<void> => {
     expiresAt,
     message: "A 6-digit verification code has been sent to your email address.",
   });
+});
+
+// Alias for /auth/signup
+router.post("/auth/signup", authLimiter, (req, res, next) => {
+  (router as any).handle(Object.assign(req, { url: "/auth/register" }), res, next);
 });
 
 // ── Step 2: Verify Registration OTP & Activate Account ───────────────────────
@@ -228,12 +242,12 @@ router.post("/auth/verify-registration", authLimiter, async (req, res): Promise<
 
   if (record.attempts >= 5) {
     await OtpVerification.deleteOne({ _id: record._id });
-    res.status(429).json({ error: "Too many incorrect attempts. Please request a new verification code." });
+    res.status(429).json({ error: "Too many incorrect attempts. This code has been invalidated. Please request a new verification code." });
     return;
   }
 
   const inputHash = hashOtpCode(cleanCode);
-  const isMatch = record.code === inputHash || record.code === cleanCode;
+  const isMatch = record.code === inputHash;
 
   if (!isMatch) {
     record.attempts += 1;
@@ -268,7 +282,9 @@ router.post("/auth/verify-registration", authLimiter, async (req, res): Promise<
     email: cleanEmail,
     fullName,
     passwordHash,
+    role: "user",
     profileCompleted: false,
+    isVerified: false,
     sessions: [clientInfo],
     loginAlerts: [{
       id: crypto.randomUUID(),
@@ -293,6 +309,11 @@ router.post("/auth/verify-registration", authLimiter, async (req, res): Promise<
   });
 });
 
+// Alias for /auth/verify-email
+router.post("/auth/verify-email", authLimiter, (req, res, next) => {
+  (router as any).handle(Object.assign(req, { url: "/auth/verify-registration" }), res, next);
+});
+
 // ── Resend Registration OTP ──────────────────────────────────────────────────
 router.post("/auth/resend-code", authLimiter, async (req, res): Promise<void> => {
   const { email } = req.body as { email?: string };
@@ -308,14 +329,15 @@ router.post("/auth/resend-code", authLimiter, async (req, res): Promise<void> =>
   });
 
   if (!existingRecord) {
-    res.status(404).json({ error: "No pending registration found for this email." });
+    res.status(404).json({ error: "No pending registration found for this email. Please register again." });
     return;
   }
 
-  // Cooldown check (30 seconds)
-  const timeSinceLastUpdate = Date.now() - new Date(existingRecord.updatedAt).getTime();
-  if (timeSinceLastUpdate < 30_000) {
-    const waitSeconds = Math.ceil((30_000 - timeSinceLastUpdate) / 1000);
+  // Cooldown check (60 seconds)
+  const lastSent = existingRecord.lastSentAt ? new Date(existingRecord.lastSentAt).getTime() : new Date(existingRecord.updatedAt).getTime();
+  const timeSinceLastSent = Date.now() - lastSent;
+  if (timeSinceLastSent < 60_000) {
+    const waitSeconds = Math.ceil((60_000 - timeSinceLastSent) / 1000);
     res.status(429).json({ error: `Please wait ${waitSeconds} seconds before requesting a new code.` });
     return;
   }
@@ -323,14 +345,242 @@ router.post("/auth/resend-code", authLimiter, async (req, res): Promise<void> =>
   const newCode = generateOtpCode();
   existingRecord.code = hashOtpCode(newCode);
   existingRecord.attempts = 0;
+  existingRecord.lastSentAt = new Date();
   existingRecord.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   await existingRecord.save();
 
-  await sendOtpEmail({ email: cleanEmail, code: newCode, type: "register" });
+  try {
+    await sendOtpEmail({ email: cleanEmail, code: newCode, type: "register" });
+  } catch (err: any) {
+    res.status(500).json({
+      error: "Failed to send verification email. Please try again in a few moments.",
+    });
+    return;
+  }
 
   res.json({
     ok: true,
-    message: "A new verification code has been sent to your email address.",
+    message: "A new 6-digit verification code has been sent to your email address.",
+  });
+});
+
+// Alias for /auth/resend-verification
+router.post("/auth/resend-verification", authLimiter, (req, res, next) => {
+  (router as any).handle(Object.assign(req, { url: "/auth/resend-code" }), res, next);
+});
+
+// ── Password Reset: Step 1 - Request Reset Code ──────────────────────────────
+router.post("/auth/forgot-password", authLimiter, async (req, res): Promise<void> => {
+  const { email } = req.body as { email?: string };
+  const cleanEmail = String(email || "").trim().toLowerCase();
+
+  if (!cleanEmail) {
+    res.status(400).json({ error: "Email address is required" });
+    return;
+  }
+
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(cleanEmail)) {
+    res.status(400).json({ error: "Please enter a valid email address" });
+    return;
+  }
+
+  const user = await User.findOne({ email: cleanEmail });
+
+  // Account enumeration protection: Generic response whether account exists or not
+  if (!user) {
+    // Artificial small delay to prevent timing discrepancy
+    await new Promise((r) => setTimeout(r, 400));
+    res.status(200).json({
+      ok: true,
+      message: "If an account exists for this email address, a 6-digit verification code has been sent.",
+    });
+    return;
+  }
+
+  // Check resend cooldown on existing password reset OTP
+  const existingOtp = await OtpVerification.findOne({ email: cleanEmail, type: "password_reset" });
+  if (existingOtp) {
+    const lastSent = existingOtp.lastSentAt ? new Date(existingOtp.lastSentAt).getTime() : new Date(existingOtp.updatedAt).getTime();
+    const timeSinceLastSent = Date.now() - lastSent;
+    if (timeSinceLastSent < 60_000) {
+      const waitSeconds = Math.ceil((60_000 - timeSinceLastSent) / 1000);
+      res.status(429).json({
+        error: `Please wait ${waitSeconds} seconds before requesting another reset code.`,
+      });
+      return;
+    }
+  }
+
+  const resetCode = generateOtpCode();
+  const resetCodeHash = hashOtpCode(resetCode);
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+  await OtpVerification.deleteMany({ email: cleanEmail, type: "password_reset" });
+  const newOtp = await OtpVerification.create({
+    email: cleanEmail,
+    code: resetCodeHash,
+    type: "password_reset",
+    expiresAt,
+    attempts: 0,
+    lastSentAt: new Date(),
+  });
+
+  try {
+    await sendOtpEmail({ email: cleanEmail, code: resetCode, type: "password_reset" });
+  } catch (err: any) {
+    await OtpVerification.deleteOne({ _id: newOtp._id });
+    res.status(500).json({
+      error: "Unable to send password reset email. Please try again in a few moments.",
+    });
+    return;
+  }
+
+  res.status(200).json({
+    ok: true,
+    message: "If an account exists for this email address, a 6-digit verification code has been sent.",
+  });
+});
+
+// ── Password Reset: Step 2 - Verify Reset Code ───────────────────────────────
+router.post("/auth/verify-reset-code", authLimiter, async (req, res): Promise<void> => {
+  const { email, code } = req.body as { email?: string; code?: string };
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanCode = String(code || "").trim();
+
+  if (!cleanEmail || !cleanCode) {
+    res.status(400).json({ error: "Email and reset code are required" });
+    return;
+  }
+
+  const record = await OtpVerification.findOne({
+    email: cleanEmail,
+    type: "password_reset",
+    expiresAt: { $gt: new Date() },
+  });
+
+  if (!record) {
+    res.status(400).json({ error: "Reset code has expired or is invalid. Please request a new code." });
+    return;
+  }
+
+  if (record.attempts >= 5) {
+    await OtpVerification.deleteOne({ _id: record._id });
+    res.status(429).json({ error: "Too many incorrect attempts. This code has been invalidated. Please request a new code." });
+    return;
+  }
+
+  const inputHash = hashOtpCode(cleanCode);
+  const isMatch = record.code === inputHash;
+
+  if (!isMatch) {
+    record.attempts += 1;
+    await record.save();
+    const remaining = 5 - record.attempts;
+    res.status(400).json({
+      error: `Invalid reset code. ${remaining} attempt(s) remaining.`,
+    });
+    return;
+  }
+
+  // Code is verified! Generate a cryptographically secure, single-use reset token
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const resetTokenHash = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+  record.payload = { resetTokenHash };
+  record.expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes to submit new password
+  await record.save();
+
+  res.status(200).json({
+    ok: true,
+    resetToken,
+    message: "Reset code verified successfully. You may now create your new password.",
+  });
+});
+
+// ── Password Reset: Step 3 - Submit New Password ─────────────────────────────
+router.post("/auth/reset-password", authLimiter, async (req, res): Promise<void> => {
+  const { email, resetToken, newPassword, confirmPassword } = req.body as {
+    email?: string;
+    resetToken?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  };
+
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanToken = String(resetToken || "").trim();
+  const cleanPassword = String(newPassword || "");
+
+  if (!cleanEmail || !cleanToken || !cleanPassword) {
+    res.status(400).json({ error: "All fields are required" });
+    return;
+  }
+
+  if (confirmPassword !== undefined && cleanPassword !== confirmPassword) {
+    res.status(400).json({ error: "Passwords do not match" });
+    return;
+  }
+
+  // Validate strong password policy (10+ chars, upper, lower, number, special char)
+  if (cleanPassword.length < 10) {
+    res.status(400).json({ error: "Password must be at least 10 characters long" });
+    return;
+  }
+  if (!/[A-Z]/.test(cleanPassword)) {
+    res.status(400).json({ error: "Password must contain at least one uppercase letter (A-Z)" });
+    return;
+  }
+  if (!/[a-z]/.test(cleanPassword)) {
+    res.status(400).json({ error: "Password must contain at least one lowercase letter (a-z)" });
+    return;
+  }
+  if (!/[0-9]/.test(cleanPassword)) {
+    res.status(400).json({ error: "Password must contain at least one number (0-9)" });
+    return;
+  }
+  if (!/[^A-Za-z0-9]/.test(cleanPassword)) {
+    res.status(400).json({ error: "Password must contain at least one special character (!@#$%^&*...)" });
+    return;
+  }
+
+  const record = await OtpVerification.findOne({
+    email: cleanEmail,
+    type: "password_reset",
+    expiresAt: { $gt: new Date() },
+  });
+
+  if (!record || !record.payload?.resetTokenHash) {
+    res.status(400).json({ error: "Password reset session has expired or is invalid. Please request a new code." });
+    return;
+  }
+
+  const tokenHash = crypto.createHash("sha256").update(cleanToken).digest("hex");
+  if (record.payload.resetTokenHash !== tokenHash) {
+    res.status(400).json({ error: "Invalid reset token. Please restart password recovery." });
+    return;
+  }
+
+  const user = await User.findOne({ email: cleanEmail });
+  if (!user) {
+    res.status(404).json({ error: "Account not found." });
+    return;
+  }
+
+  // Update password and ensure account is marked as verified
+  user.passwordHash = await hashPassword(cleanPassword);
+  user.isVerified = true;
+  // Security best practice: invalidate all active sessions and refresh tokens on password change
+  user.sessions = [];
+  await user.save();
+
+  await RefreshToken.updateMany({ userId: user._id.toString() }, { revoked: true });
+
+  // Invalidate the reset token
+  await OtpVerification.deleteOne({ _id: record._id });
+
+  res.status(200).json({
+    ok: true,
+    message: "Password reset successful! You can now sign in with your new password.",
   });
 });
 
@@ -351,6 +601,15 @@ router.post("/auth/login", authLimiter, async (req, res): Promise<void> => {
 
   const valid = await comparePassword(password, user.passwordHash);
   if (!valid) { res.status(401).json({ error: "Invalid credentials" }); return; }
+
+  // Ensure account is verified
+  if (user.isVerified === false) {
+    res.status(403).json({
+      error: "Account email is not verified. Please complete verification before signing in.",
+      unverifiedEmail: user.email,
+    });
+    return;
+  }
 
   // If user is deactivated, reactivate upon successful login
   if (user.isDeactivated) {
@@ -403,6 +662,7 @@ router.post("/auth/login", authLimiter, async (req, res): Promise<void> => {
   const currentSessions = user.sessions || [];
   // Keep up to 10 latest sessions
   user.sessions = [clientInfo, ...currentSessions.filter(s => s.deviceName !== clientInfo.deviceName)].slice(0, 10);
+
   await user.save();
 
   const { token, refreshToken } = await issueTokenPair(user._id.toString(), user.username);
@@ -464,13 +724,16 @@ router.post("/auth/change-password", requireAuth, async (req: AuthRequest, res):
     return;
   }
 
-  const user = await User.findById(req.userId);
+  const user = await User.findById(req.userId).select("+passwordHash");
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   const valid = await comparePassword(currentPassword, user.passwordHash);
   if (!valid) { res.status(400).json({ error: "Current password is incorrect" }); return; }
 
   user.passwordHash = await hashPassword(newPassword);
+  user.sessions = req ? [getClientInfo(req)] : [];
   await user.save();
+  await RefreshToken.deleteMany({ userId: user._id });
+
   res.sendStatus(204);
 });
 

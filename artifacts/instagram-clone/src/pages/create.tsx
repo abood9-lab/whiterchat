@@ -6,54 +6,86 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import {
-  ImagePlus, X, Sparkles, RefreshCw, ChevronLeft, ChevronRight,
-  MapPin, Users, Lock, MessageCircleOff, Info, Check, Upload,
-  Image as ImageIcon, Grid3X3
+  ImagePlus,
+  X,
+  Sparkles,
+  RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  MapPin,
+  Users,
+  Lock,
+  MessageCircleOff,
+  Info,
+  Check,
+  Upload,
+  Image as ImageIcon,
+  Grid3X3,
+  Film,
+  Sliders,
+  Play,
+  Pause,
+  ArrowRight,
+  ArrowLeft,
+  Trash2,
+  Smile,
+  Hash,
+  AtSign,
+  ChevronDown,
+  Layers,
+  Globe,
+  Settings2,
+  CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { CreateReelModal } from "@/components/reels/CreateReelModal";
+import { StoryCreator } from "@/components/StoryCreator";
+import { apiUrl } from "@/lib/api-url";
 
 // ─── Filter presets ───────────────────────────────────────────────────────────
 const FILTERS = [
-  { name: "Normal",    css: "none" },
+  { name: "Normal", css: "none" },
   { name: "Clarendon", css: "contrast(1.2) saturate(1.35)" },
-  { name: "Juno",      css: "saturate(1.4) contrast(1.05) brightness(1.02)" },
-  { name: "Lark",      css: "contrast(0.9) brightness(1.1) saturate(1.4)" },
-  { name: "Ludwig",    css: "contrast(1.05) brightness(1.05) saturate(1.3)" },
-  { name: "Moon",      css: "grayscale(1) contrast(1.1) brightness(1.1)" },
-  { name: "Perpetua",  css: "contrast(1.1) brightness(1.05) saturate(1.1)" },
-  { name: "Reyes",     css: "sepia(0.4) contrast(0.85) brightness(1.1) saturate(0.75)" },
-  { name: "Slumber",   css: "saturate(0.66) brightness(1.05)" },
+  { name: "Juno", css: "saturate(1.4) contrast(1.05) brightness(1.02)" },
+  { name: "Lark", css: "contrast(0.9) brightness(1.1) saturate(1.4)" },
+  { name: "Ludwig", css: "contrast(1.05) brightness(1.05) saturate(1.3)" },
+  { name: "Moon", css: "grayscale(1) contrast(1.1) brightness(1.1)" },
+  { name: "Perpetua", css: "contrast(1.1) brightness(1.05) saturate(1.1)" },
+  { name: "Reyes", css: "sepia(0.4) contrast(0.85) brightness(1.1) saturate(0.75)" },
+  { name: "Slumber", css: "saturate(0.66) brightness(1.05)" },
 ] as const;
 
 // ─── Aspect ratios ────────────────────────────────────────────────────────────
 const RATIOS = [
-  { label: "1:1",   icon: "■",  style: { aspectRatio: "1/1" } },
-  { label: "4:5",   icon: "▬",  style: { aspectRatio: "4/5" } },
-  { label: "16:9",  icon: "▭",  style: { aspectRatio: "16/9" } },
-  { label: "Free",  icon: "⊞",  style: { aspectRatio: "auto" } },
+  { label: "1:1", desc: "Square", icon: "■", style: { aspectRatio: "1/1" } },
+  { label: "4:5", desc: "Portrait", icon: "▬", style: { aspectRatio: "4/5" } },
+  { label: "16:9", desc: "Landscape", icon: "▭", style: { aspectRatio: "16/9" } },
+  { label: "Original", desc: "Auto", icon: "⊞", style: { aspectRatio: "auto" } },
 ] as const;
 
 // ─── Hashtag suggestions ──────────────────────────────────────────────────────
 const POPULAR_TAGS = [
-  "photography", "photooftheday", "instagood", "travel", "nature",
-  "fashion", "food", "art", "lifestyle", "beautiful", "summer",
-  "happy", "love", "sunset", "portrait", "street", "minimal",
-  "aesthetic", "vibes", "explore",
+  "photography", "art", "lifestyle", "travel", "nature",
+  "creativity", "vibes", "design", "explore", "aesthetic",
+  "sunset", "inspiration", "portrait", "community", "music",
 ];
 
-// ─── AI prompts ───────────────────────────────────────────────────────────────
+// ─── AI prompt tones ──────────────────────────────────────────────────────────
 const AI_PROMPTS = [
-  { label: "Fun & Engaging",   prompt: "Generate a fun and engaging caption for this photo" },
-  { label: "Motivational",     prompt: "Write a motivational and inspiring caption" },
-  { label: "Witty",            prompt: "Create a witty and creative caption with a bit of humor" },
-  { label: "Heartfelt",        prompt: "Write a heartfelt and sincere caption" },
-  { label: "Trendy",           prompt: "Generate a trendy caption with good vibes and emojis" },
-  { label: "Minimalist",       prompt: "Write a short, minimal one-liner caption" },
+  { label: "Engaging & Fun", prompt: "Write an engaging, vibrant, and fun caption with high conversational energy" },
+  { label: "Inspirational", prompt: "Write a motivational and thoughtful caption about perseverance and growth" },
+  { label: "Witty & Playful", prompt: "Create a short, witty caption with subtle humor and clever phrasing" },
+  { label: "Minimalist", prompt: "Write a clean, aesthetic one-liner caption with quiet confidence" },
+  { label: "Storytelling", prompt: "Draft a heartfelt storytelling caption sharing a meaningful perspective" },
 ];
+
+const EMOJI_LIST = ["✨", "🔥", "📸", "🖤", "💫", "🌿", "🚀", "💡", "☕", "🌊", "🎉", "❤️"];
 
 type Step = "select" | "edit" | "details";
+type CreationType = "post" | "reel" | "story";
 
 interface MediaItem {
   file: File;
@@ -61,7 +93,18 @@ interface MediaItem {
   filterIndex: number;
 }
 
+interface UserSuggestion {
+  _id: string;
+  username: string;
+  name?: string;
+  avatar?: string;
+}
+
 export default function Create() {
+  const [creationType, setCreationType] = useState<CreationType>("post");
+  const [reelModalOpen, setReelModalOpen] = useState(false);
+  const [storyCreatorOpen, setStoryCreatorOpen] = useState(false);
+
   // ── Step state ──────────────────────────────────────────────────────────────
   const [step, setStep] = useState<Step>("select");
 
@@ -72,22 +115,30 @@ export default function Create() {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ── Video preview controls ──────────────────────────────────────────────────
+  const [isVideoPlaying, setIsVideoPlaying] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
+
   // ── Caption & details state ─────────────────────────────────────────────────
   const [caption, setCaption] = useState("");
   const [location, setLocation] = useState("");
   const [altText, setAltText] = useState("");
   const [audience, setAudience] = useState<"everyone" | "close_friends">("everyone");
   const [commentsDisabled, setCommentsDisabled] = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  // ── Hashtag autocomplete ────────────────────────────────────────────────────
-  const [hashtagQuery, setHashtagQuery] = useState("");
+  // ── Hashtag and Mention Autocomplete ────────────────────────────────────────
   const [hashtagSuggestions, setHashtagSuggestions] = useState<string[]>([]);
+  const [mentionSuggestions, setMentionSuggestions] = useState<UserSuggestion[]>([]);
   const captionRef = useRef<HTMLTextAreaElement>(null);
 
   // ── AI state ────────────────────────────────────────────────────────────────
   const [showAI, setShowAI] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
+
+  // ── Real upload progress ────────────────────────────────────────────────────
+  const [uploadProgress, setUploadProgress] = useState<{ current: number; total: number } | null>(null);
 
   const { toast } = useToast();
   const [, setLocation_] = useLocation();
@@ -100,33 +151,54 @@ export default function Create() {
   const activeItem = items[activeIdx] ?? null;
 
   // ── File processing ─────────────────────────────────────────────────────────
-  const processFiles = useCallback((files: File[]) => {
-    const valid = files.filter(f => {
-      if (!f.type.startsWith("image/") && !f.type.startsWith("video/")) {
-        toast({ title: `${f.name} skipped`, description: "Only images and videos", variant: "destructive" });
-        return false;
+  const processFiles = useCallback(
+    (files: File[]) => {
+      const valid = files.filter((f) => {
+        if (!f.type.startsWith("image/") && !f.type.startsWith("video/")) {
+          toast({
+            title: `${f.name} skipped`,
+            description: "Only image and video files are supported.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        if (f.size > 50 * 1024 * 1024) {
+          toast({
+            title: `${f.name} is too large`,
+            description: "Maximum file size is 50 MB.",
+            variant: "destructive",
+          });
+          return false;
+        }
+        return true;
+      });
+
+      const remaining = 10 - items.length;
+      const toAdd = valid.slice(0, remaining);
+      if (valid.length > remaining) {
+        toast({
+          title: "File Limit Reached",
+          description: `You can select up to 10 media files per post. Added ${toAdd.length} files.`,
+        });
       }
-      if (f.size > 50 * 1024 * 1024) {
-        toast({ title: `${f.name} too large`, description: "Max 50 MB per file", variant: "destructive" });
-        return false;
+
+      toAdd.forEach((file) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setItems((prev) => [
+            ...prev,
+            { file, preview: reader.result as string, filterIndex: 0 },
+          ]);
+        };
+        reader.readAsDataURL(file);
+      });
+
+      if (toAdd.length > 0 && step === "select") {
+        setStep("edit");
       }
-      return true;
-    });
-
-    const remaining = 10 - items.length;
-    const toAdd = valid.slice(0, remaining);
-    if (valid.length > remaining) toast({ title: `Max 10 files`, description: `Added ${toAdd.length} of ${valid.length} files` });
-
-    toAdd.forEach(file => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setItems(prev => [...prev, { file, preview: reader.result as string, filterIndex: 0 }]);
-      };
-      reader.readAsDataURL(file);
-    });
-
-    if (toAdd.length > 0 && step === "select") setStep("edit");
-  }, [items.length, step, toast]);
+    },
+    [items.length, step, toast]
+  );
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -135,7 +207,10 @@ export default function Create() {
   };
 
   // ── Drag & drop ─────────────────────────────────────────────────────────────
-  const handleDragOver = (e: React.DragEvent) => { e.preventDefault(); setIsDragOver(true); };
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
   const handleDragLeave = () => setIsDragOver(false);
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -145,7 +220,24 @@ export default function Create() {
 
   // ── Filter assignment ────────────────────────────────────────────────────────
   const setFilter = (filterIdx: number) => {
-    setItems(prev => prev.map((item, i) => i === activeIdx ? { ...item, filterIndex: filterIdx } : item));
+    setItems((prev) =>
+      prev.map((item, i) =>
+        i === activeIdx ? { ...item, filterIndex: filterIdx } : item
+      )
+    );
+  };
+
+  // ── Reordering items ────────────────────────────────────────────────────────
+  const moveItem = (fromIdx: number, direction: "left" | "right") => {
+    const toIdx = direction === "left" ? fromIdx - 1 : fromIdx + 1;
+    if (toIdx < 0 || toIdx >= items.length) return;
+    setItems((prev) => {
+      const copy = [...prev];
+      const [removed] = copy.splice(fromIdx, 1);
+      copy.splice(toIdx, 0, removed);
+      return copy;
+    });
+    setActiveIdx(toIdx);
   };
 
   // ── Remove item ─────────────────────────────────────────────────────────────
@@ -153,20 +245,44 @@ export default function Create() {
     const next = items.filter((_, i) => i !== idx);
     setItems(next);
     setActiveIdx(Math.min(activeIdx, Math.max(0, next.length - 1)));
-    if (next.length === 0) { setStep("select"); setActiveIdx(0); }
+    if (next.length === 0) {
+      setStep("select");
+      setActiveIdx(0);
+    }
   };
 
-  // ── Hashtag autocomplete ────────────────────────────────────────────────────
+  // ── Hashtag & Mention Detection ─────────────────────────────────────────────
   useEffect(() => {
     const words = caption.split(/\s/);
-    const lastWord = words[words.length - 1];
-    if (lastWord?.startsWith("#") && lastWord.length > 1) {
+    const lastWord = words[words.length - 1] || "";
+
+    // Hashtags
+    if (lastWord.startsWith("#") && lastWord.length > 1) {
       const q = lastWord.slice(1).toLowerCase();
-      setHashtagQuery(q);
-      setHashtagSuggestions(POPULAR_TAGS.filter(t => t.startsWith(q) && t !== q).slice(0, 6));
+      setHashtagSuggestions(
+        POPULAR_TAGS.filter((t) => t.startsWith(q) && t !== q).slice(0, 6)
+      );
     } else {
-      setHashtagQuery("");
       setHashtagSuggestions([]);
+    }
+
+    // Mentions (@)
+    if (lastWord.startsWith("@") && lastWord.length > 1) {
+      const q = lastWord.slice(1);
+      const controller = new AbortController();
+      fetch(apiUrl(`/api/search/users?q=${encodeURIComponent(q)}`), {
+        signal: controller.signal,
+      })
+        .then((res) => (res.ok ? res.json() : { users: [] }))
+        .then((data) => {
+          setMentionSuggestions((data.users || []).slice(0, 5));
+        })
+        .catch(() => {
+          setMentionSuggestions([]);
+        });
+      return () => controller.abort();
+    } else {
+      setMentionSuggestions([]);
     }
   }, [caption]);
 
@@ -178,259 +294,411 @@ export default function Create() {
     captionRef.current?.focus();
   };
 
+  const insertMention = (username: string) => {
+    const words = caption.split(/\s/);
+    words[words.length - 1] = `@${username} `;
+    setCaption(words.join(" "));
+    setMentionSuggestions([]);
+    captionRef.current?.focus();
+  };
+
+  const insertEmoji = (emoji: string) => {
+    setCaption((prev) => prev + emoji);
+    captionRef.current?.focus();
+  };
+
   // ── AI caption ──────────────────────────────────────────────────────────────
   const handleGenerateCaption = async (promptOverride?: string) => {
     const prompt = promptOverride ?? aiPrompt.trim();
-    if (!prompt) { toast({ title: "Enter a prompt first", variant: "destructive" }); return; }
+    if (!prompt) {
+      toast({ title: "Enter a prompt description first", variant: "destructive" });
+      return;
+    }
     setAiGenerating(true);
     try {
-      const result = await generateCaptionMutation.mutateAsync({ data: { prompt } });
+      const result = await generateCaptionMutation.mutateAsync({
+        data: { prompt },
+      });
       setCaption(result.caption);
-      toast({ title: "Caption generated!" });
+      toast({ title: "Caption generated successfully" });
     } catch (e: any) {
-      toast({ title: "AI Error", description: e?.message ?? "Failed", variant: "destructive" });
+      toast({
+        title: "AI Caption Failed",
+        description: e?.message ?? "Could not generate caption at this time.",
+        variant: "destructive",
+      });
     } finally {
       setAiGenerating(false);
     }
   };
 
-  // ── Submit ───────────────────────────────────────────────────────────────────
+  // ── Submit post ─────────────────────────────────────────────────────────────
   const handleSubmit = async () => {
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      toast({ title: "No media attached", description: "Please attach at least one photo or video.", variant: "destructive" });
+      return;
+    }
+
     try {
-      const uploads = await Promise.all(
-        items.map(item =>
-          uploadMutation.mutateAsync({ data: { data: item.preview, mimeType: item.file.type } })
-        )
-      );
-      const [first, ...rest] = uploads;
+      setUploadProgress({ current: 0, total: items.length });
+      const uploadedUrls: string[] = [];
+
+      for (let i = 0; i < items.length; i++) {
+        setUploadProgress({ current: i + 1, total: items.length });
+        const res = await uploadMutation.mutateAsync({
+          data: { data: items[i].preview, mimeType: items[i].file.type },
+        });
+        uploadedUrls.push(res.url);
+      }
+
+      const [firstUrl, ...restUrls] = uploadedUrls;
       const mediaType = items[0].file.type.startsWith("video/") ? "video" : "image";
 
       await createMutation.mutateAsync({
         data: {
           caption: caption || undefined,
-          mediaUrl: first.url,
+          mediaUrl: firstUrl,
           mediaType,
           audience,
           location: location || undefined,
           altText: altText || undefined,
           commentsDisabled,
-          additionalMediaUrls: rest.map(u => u.url),
+          additionalMediaUrls: restUrls,
         } as any,
       });
 
-      toast({ title: "Post shared! 🎉" });
+      toast({
+        title: "Post Published!",
+        description: "Your post is now live in the community feed.",
+      });
       setLocation_("/");
     } catch (e: any) {
-      toast({ title: "Failed to share", description: e.message, variant: "destructive" });
+      toast({
+        title: "Failed to publish post",
+        description: e.message || "An unexpected error occurred.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadProgress(null);
     }
   };
 
-  // ─────────────────────────────────────────────────────────────────────────────
-  // Render helpers
-  // ─────────────────────────────────────────────────────────────────────────────
+  // ── Switch Creation Types ───────────────────────────────────────────────────
+  const handleTypeSelect = (type: CreationType) => {
+    setCreationType(type);
+    if (type === "reel") {
+      setReelModalOpen(true);
+    } else if (type === "story") {
+      setStoryCreatorOpen(true);
+    }
+  };
 
-  const StepIndicator = () => (
-    <div className="flex items-center gap-1 text-xs font-medium">
-      {(["select", "edit", "details"] as Step[]).map((s, i) => (
-        <span key={s} className="flex items-center gap-1">
-          {i > 0 && <ChevronRight className="h-3 w-3 text-muted-foreground" />}
-          <span
-            className={cn(
-              "px-2 py-0.5 rounded-full transition-colors",
-              step === s ? "bg-primary text-primary-foreground" :
-              (step === "details" || (step === "edit" && s === "select")) ? "text-muted-foreground line-through" :
-              "text-muted-foreground"
-            )}
-          >
-            {s === "select" ? "Select" : s === "edit" ? "Edit" : "Details"}
-          </span>
-        </span>
-      ))}
+  // ── Navigation step header ──────────────────────────────────────────────────
+  const StepHeader = () => (
+    <div className="flex items-center gap-1.5 text-xs">
+      {(["select", "edit", "details"] as Step[]).map((s, i) => {
+        const labels: Record<Step, string> = {
+          select: "1. Upload",
+          edit: "2. Edit & Filter",
+          details: "3. Details & Publish",
+        };
+        const isActive = step === s;
+        const isPassed =
+          (step === "details" && s !== "details") ||
+          (step === "edit" && s === "select");
+
+        return (
+          <div key={s} className="flex items-center gap-1.5">
+            {i > 0 && <ChevronRight className="w-3.5 h-3.5 text-muted-foreground/60" />}
+            <span
+              className={cn(
+                "px-2.5 py-1 rounded-full font-medium transition-colors text-xs",
+                isActive
+                  ? "bg-primary text-primary-foreground font-semibold"
+                  : isPassed
+                  ? "text-foreground font-semibold hover:underline cursor-pointer"
+                  : "text-muted-foreground"
+              )}
+              onClick={() => {
+                if (isPassed) setStep(s);
+              }}
+            >
+              {labels[s]}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 
-  // ── STEP 1: SELECT ─────────────────────────────────────────────────────────
-  if (step === "select") {
-    return (
-      <div className="max-w-xl mx-auto pt-6 pb-24 md:pb-8 px-4">
-        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-          <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-            <h1 className="font-bold text-lg tracking-tight">Create post</h1>
-            <StepIndicator />
-          </div>
+  return (
+    <div className="max-w-5xl mx-auto pt-2 sm:pt-4 pb-24 md:pb-12 px-3 sm:px-6 space-y-6">
+      {/* ── Studio Header & Format Selector ───────────────────────────── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
+        <div>
+          <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+            Creation Studio
+          </h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Publish authentic photos, immersive reels, and interactive stories to your audience.
+          </p>
+        </div>
 
-          {/* Drop zone */}
-          <div
+        {/* Content Type Selector Pills */}
+        <div className="flex items-center p-1 bg-muted/60 rounded-xl border border-border/70 self-start sm:self-auto">
+          <button
+            onClick={() => handleTypeSelect("post")}
             className={cn(
-              "m-4 border-2 border-dashed rounded-xl transition-all cursor-pointer",
-              "flex flex-col items-center justify-center gap-4 py-16 px-8 text-center",
-              isDragOver ? "border-primary bg-primary/5 scale-[1.01]" : "border-border hover:border-primary/50 hover:bg-muted/30"
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+              creationType === "post"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
             )}
-            onClick={() => fileInputRef.current?.click()}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
           >
-            <div className={cn("rounded-2xl p-5 transition-colors", isDragOver ? "bg-primary/10" : "bg-muted")}>
-              <Upload className={cn("w-10 h-10 transition-colors", isDragOver ? "text-primary" : "text-muted-foreground")} />
-            </div>
-            <div>
-              <p className="font-semibold text-base mb-1">
-                {isDragOver ? "Drop to add files" : "Drag & drop photos or videos"}
-              </p>
-              <p className="text-sm text-muted-foreground">or tap to browse · up to 10 files · 50 MB each</p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="default" className="rounded-full px-6" onClick={e => { e.stopPropagation(); fileInputRef.current?.click(); }}>
-                <ImageIcon className="w-4 h-4 mr-2" /> Browse files
-              </Button>
-            </div>
-            <div className="flex items-center gap-4 text-xs text-muted-foreground mt-2">
-              <span className="flex items-center gap-1"><ImageIcon className="w-3 h-3" /> JPG, PNG, WEBP</span>
-              <span>·</span>
-              <span className="flex items-center gap-1"><Grid3X3 className="w-3 h-3" /> Up to 10 photos</span>
-            </div>
-          </div>
-
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept="image/*,video/*"
-            multiple
-            onChange={handleFileSelect}
-          />
+            <ImageIcon className="w-3.5 h-3.5 text-primary" />
+            <span>Post</span>
+          </button>
+          <button
+            onClick={() => handleTypeSelect("reel")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+              creationType === "reel"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Film className="w-3.5 h-3.5 text-pink-500" />
+            <span>Reel</span>
+          </button>
+          <button
+            onClick={() => handleTypeSelect("story")}
+            className={cn(
+              "flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all",
+              creationType === "story"
+                ? "bg-card text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground"
+            )}
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Story</span>
+          </button>
         </div>
       </div>
-    );
-  }
 
-  // ── STEP 2: EDIT ──────────────────────────────────────────────────────────
-  if (step === "edit") {
-    const currentFilter = FILTERS[activeItem?.filterIndex ?? 0];
-    const currentRatio = RATIOS[ratioIdx];
+      {/* ── STEP 1: SELECT / UPLOAD WORKSPACE ─────────────────────────── */}
+      {step === "select" && (
+        <div className="max-w-2xl mx-auto space-y-4">
+          <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/20">
+              <span className="font-bold text-sm text-foreground">Upload Media</span>
+              <StepHeader />
+            </div>
 
-    return (
-      <div className="max-w-3xl mx-auto pt-4 pb-24 md:pb-8 px-4">
+            {/* Drag & Drop Area */}
+            <div
+              className={cn(
+                "m-6 border-2 border-dashed rounded-2xl transition-all cursor-pointer",
+                "flex flex-col items-center justify-center gap-4 py-16 px-6 text-center",
+                isDragOver
+                  ? "border-primary bg-primary/5 scale-[1.01]"
+                  : "border-border hover:border-primary/50 hover:bg-muted/30"
+              )}
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div
+                className={cn(
+                  "rounded-2xl p-4 transition-colors shadow-inner",
+                  isDragOver ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                )}
+              >
+                <Upload className="w-10 h-10" />
+              </div>
+
+              <div className="space-y-1">
+                <p className="font-bold text-base text-foreground">
+                  {isDragOver ? "Drop files to upload" : "Drag and drop your photos or videos"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  or click anywhere to browse your files from device
+                </p>
+              </div>
+
+              <Button
+                variant="default"
+                size="sm"
+                className="rounded-xl px-5 font-semibold gap-2 shadow-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRef.current?.click();
+                }}
+              >
+                <ImagePlus className="w-4 h-4" />
+                Select From Computer
+              </Button>
+
+              <div className="flex items-center gap-4 text-[11px] text-muted-foreground pt-4 border-t border-border/60">
+                <span className="flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5" /> High-res JPG, PNG, WEBP
+                </span>
+                <span>·</span>
+                <span className="flex items-center gap-1.5">
+                  <Film className="w-3.5 h-3.5" /> MP4 or MOV video
+                </span>
+                <span>·</span>
+                <span className="flex items-center gap-1.5">
+                  <Grid3X3 className="w-3.5 h-3.5" /> Up to 10 files
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP 2: EDIT & FILTER WORKSPACE ───────────────────────────── */}
+      {step === "edit" && (
         <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-            <Button variant="ghost" size="sm" onClick={() => setStep("select")} className="rounded-full">
-              <ChevronLeft className="h-4 w-4 mr-1" /> Back
+          {/* Top Bar */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/20">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStep("select")}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <ChevronLeft className="w-4 h-4" /> Back to Upload
             </Button>
-            <StepIndicator />
-            <Button className="rounded-full px-5 font-semibold" onClick={() => setStep("details")}>
-              Next <ChevronRight className="h-4 w-4 ml-1" />
+            <StepHeader />
+            <Button
+              onClick={() => setStep("details")}
+              size="sm"
+              className="rounded-xl px-5 font-semibold gap-1.5 shadow-sm"
+            >
+              Next: Details <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
 
-          <div className="flex flex-col lg:flex-row">
-            {/* Main preview */}
-            <div className="relative flex-1 bg-black flex items-center justify-center overflow-hidden min-h-[300px]">
+          <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
+            {/* Center: Main Preview Canvas */}
+            <div className="lg:col-span-8 bg-black/95 flex flex-col items-center justify-center p-4 relative overflow-hidden min-h-[380px] lg:min-h-[520px]">
               {activeItem && (
-                <div className="w-full flex items-center justify-center" style={currentRatio.style as any}>
+                <div
+                  className="w-full max-w-[500px] flex items-center justify-center transition-all overflow-hidden rounded-lg shadow-2xl"
+                  style={RATIOS[ratioIdx].style as any}
+                >
                   {activeItem.file.type.startsWith("video/") ? (
-                    <video
-                      src={activeItem.preview}
-                      className="w-full h-full object-contain"
-                      style={{ filter: currentFilter.css }}
-                      controls
-                    />
+                    <div className="relative w-full h-full flex items-center justify-center">
+                      <video
+                        ref={videoRef}
+                        src={activeItem.preview}
+                        className="w-full h-full object-contain"
+                        style={{ filter: FILTERS[activeItem.filterIndex].css }}
+                        controls
+                        autoPlay
+                        loop
+                      />
+                    </div>
                   ) : (
                     <img
                       src={activeItem.preview}
-                      className="w-full h-full object-cover"
-                      style={{ filter: currentFilter.css }}
+                      className="w-full h-full object-cover select-none"
+                      style={{ filter: FILTERS[activeItem.filterIndex].css }}
                       alt="Preview"
                     />
                   )}
                 </div>
               )}
 
-              {/* Navigation arrows */}
+              {/* Prev / Next Item overlay arrows */}
               {items.length > 1 && (
                 <>
                   {activeIdx > 0 && (
                     <button
-                      onClick={() => setActiveIdx(i => i - 1)}
-                      className="absolute left-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full h-9 w-9 flex items-center justify-center transition-colors z-10"
+                      onClick={() => setActiveIdx((i) => i - 1)}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black/90 text-white rounded-full h-9 w-9 flex items-center justify-center transition-all shadow-md z-10"
                     >
                       <ChevronLeft className="w-5 h-5" />
                     </button>
                   )}
                   {activeIdx < items.length - 1 && (
                     <button
-                      onClick={() => setActiveIdx(i => i + 1)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 bg-black/60 hover:bg-black/80 text-white rounded-full h-9 w-9 flex items-center justify-center transition-colors z-10"
+                      onClick={() => setActiveIdx((i) => i + 1)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/70 hover:bg-black/90 text-white rounded-full h-9 w-9 flex items-center justify-center transition-all shadow-md z-10"
                     >
                       <ChevronRight className="w-5 h-5" />
                     </button>
                   )}
-                  {/* Dot indicators */}
-                  <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+
+                  {/* Dot Indicators */}
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-black/40 px-3 py-1.5 rounded-full backdrop-blur-sm z-10">
                     {items.map((_, i) => (
                       <button
                         key={i}
                         onClick={() => setActiveIdx(i)}
-                        className={cn("w-2 h-2 rounded-full transition-all", i === activeIdx ? "bg-white scale-125" : "bg-white/50")}
+                        className={cn(
+                          "w-2 h-2 rounded-full transition-all",
+                          i === activeIdx ? "bg-white scale-125" : "bg-white/40 hover:bg-white/70"
+                        )}
                       />
                     ))}
                   </div>
                 </>
               )}
-
-              {/* Add more button */}
-              {items.length < 10 && (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="absolute top-3 right-3 bg-black/60 hover:bg-black/80 text-white rounded-full h-9 w-9 flex items-center justify-center transition-colors text-xl font-light z-10"
-                  title="Add more"
-                >
-                  +
-                </button>
-              )}
             </div>
 
-            {/* Right panel: filters + ratio */}
-            <div className="lg:w-64 border-t lg:border-t-0 lg:border-l border-border flex flex-col">
-              {/* Aspect ratio selector */}
-              <div className="px-4 pt-3 pb-2 border-b border-border">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Aspect Ratio</p>
-                <div className="flex gap-1.5">
+            {/* Right: Studio Controls (Aspect Ratio & Filters) */}
+            <div className="lg:col-span-4 border-t lg:border-t-0 lg:border-l border-border flex flex-col bg-card">
+              {/* Aspect Ratio Selector */}
+              <div className="p-4 border-b border-border space-y-2">
+                <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                  Aspect Ratio
+                </span>
+                <div className="grid grid-cols-4 gap-2">
                   {RATIOS.map((r, i) => (
                     <button
                       key={r.label}
                       onClick={() => setRatioIdx(i)}
                       className={cn(
-                        "flex-1 py-1.5 text-xs rounded-lg border font-medium transition-all",
-                        ratioIdx === i ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40"
+                        "py-2 px-1 text-center rounded-xl border text-xs font-semibold transition-all",
+                        ratioIdx === i
+                          ? "border-primary bg-primary/10 text-primary shadow-sm"
+                          : "border-border hover:border-primary/40 text-muted-foreground hover:text-foreground"
                       )}
                     >
-                      <span className="text-base block">{r.icon}</span>
-                      {r.label}
+                      <span className="text-sm block mb-0.5">{r.icon}</span>
+                      <span>{r.label}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Filters */}
-              <div className="px-4 pt-3 pb-2 flex-1 overflow-y-auto">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Filter</p>
-                <div className="grid grid-cols-3 gap-2">
+              {/* Photo Filter Presets */}
+              <div className="p-4 flex-1 overflow-y-auto space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
+                    Filter Effects
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    Applied to item {activeIdx + 1} of {items.length}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2.5">
                   {FILTERS.map((f, i) => (
                     <button
                       key={f.name}
                       onClick={() => setFilter(i)}
                       className={cn(
-                        "flex flex-col items-center gap-1.5 rounded-xl p-1.5 border-2 transition-all",
+                        "flex flex-col items-center gap-1.5 p-1.5 rounded-xl border transition-all text-center",
                         (activeItem?.filterIndex ?? 0) === i
-                          ? "border-primary bg-primary/5 shadow-sm"
+                          ? "border-primary bg-primary/5 ring-1 ring-primary/30"
                           : "border-transparent hover:border-border"
                       )}
                     >
                       {activeItem && (
-                        <div className="w-full aspect-square rounded-lg overflow-hidden">
+                        <div className="w-full aspect-square rounded-lg overflow-hidden border border-border/50">
                           <img
                             src={activeItem.preview}
                             className="w-full h-full object-cover"
@@ -439,10 +707,9 @@ export default function Create() {
                           />
                         </div>
                       )}
-                      <span className="text-[10px] font-medium leading-none">{f.name}</span>
-                      {(activeItem?.filterIndex ?? 0) === i && (
-                        <Check className="h-3 w-3 text-primary -mt-0.5" />
-                      )}
+                      <span className="text-[10px] font-semibold text-foreground">
+                        {f.name}
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -450,272 +717,475 @@ export default function Create() {
             </div>
           </div>
 
-          {/* Thumbnail strip */}
-          {items.length > 1 && (
-            <div className="border-t border-border p-3 flex gap-2 overflow-x-auto">
-              {items.map((item, i) => (
-                <div key={i} className="relative flex-shrink-0 group">
-                  <button onClick={() => setActiveIdx(i)}>
-                    <img
-                      src={item.preview}
+          {/* Bottom Thumbnails Strip & Reordering */}
+          {items.length > 0 && (
+            <div className="p-4 border-t border-border bg-muted/20 flex items-center justify-between gap-4 overflow-x-auto">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider shrink-0">
+                  Media Items ({items.length}/10):
+                </span>
+                <div className="flex items-center gap-2">
+                  {items.map((item, i) => (
+                    <div
+                      key={i}
                       className={cn(
-                        "w-14 h-14 object-cover rounded-lg border-2 transition-all",
-                        i === activeIdx ? "border-primary" : "border-transparent opacity-70 hover:opacity-100"
+                        "relative group rounded-xl overflow-hidden border-2 transition-all shrink-0",
+                        i === activeIdx
+                          ? "border-primary ring-2 ring-primary/20 scale-105"
+                          : "border-border/80 opacity-70 hover:opacity-100"
                       )}
-                      style={{ filter: FILTERS[item.filterIndex].css }}
-                      alt={`Photo ${i + 1}`}
-                    />
-                  </button>
-                  <button
-                    onClick={() => removeItem(i)}
-                    className="absolute -top-1.5 -right-1.5 bg-black/70 text-white rounded-full w-4.5 h-4.5 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity w-5 h-5"
-                  >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
+                    >
+                      <button
+                        onClick={() => setActiveIdx(i)}
+                        className="block w-14 h-14"
+                      >
+                        <img
+                          src={item.preview}
+                          className="w-full h-full object-cover"
+                          style={{ filter: FILTERS[item.filterIndex].css }}
+                          alt={`Media ${i + 1}`}
+                        />
+                      </button>
+
+                      {/* Cover Badge for Item 0 */}
+                      {i === 0 && (
+                        <span className="absolute bottom-0 inset-x-0 bg-primary/90 text-primary-foreground text-[8px] font-bold uppercase text-center py-0.5">
+                          Cover
+                        </span>
+                      )}
+
+                      {/* Reorder and Delete overlay */}
+                      <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-1 transition-opacity">
+                        {i > 0 && (
+                          <button
+                            onClick={() => moveItem(i, "left")}
+                            className="text-white hover:text-primary p-0.5"
+                            title="Move Left"
+                          >
+                            <ArrowLeft className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => removeItem(i)}
+                          className="text-destructive hover:text-red-400 p-0.5"
+                          title="Remove"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                        {i < items.length - 1 && (
+                          <button
+                            onClick={() => moveItem(i, "right")}
+                            className="text-white hover:text-primary p-0.5"
+                            title="Move Right"
+                          >
+                            <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Add more button */}
+                  {items.length < 10 && (
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="w-14 h-14 rounded-xl border-2 border-dashed border-border hover:border-primary flex flex-col items-center justify-center text-muted-foreground hover:text-primary transition-colors shrink-0"
+                      title="Add more photos or videos"
+                    >
+                      <ImagePlus className="w-5 h-5" />
+                      <span className="text-[9px] font-semibold mt-0.5">Add</span>
+                    </button>
+                  )}
                 </div>
-              ))}
-              {items.length < 10 && (
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="flex-shrink-0 w-14 h-14 rounded-lg border-2 border-dashed border-border hover:border-primary flex items-center justify-center transition-colors text-muted-foreground hover:text-primary"
-                >
-                  <ImagePlus className="w-5 h-5" />
-                </button>
-              )}
+              </div>
             </div>
           )}
         </div>
+      )}
 
-        <input type="file" ref={fileInputRef} className="hidden" accept="image/*,video/*" multiple onChange={handleFileSelect} />
-      </div>
-    );
-  }
-
-  // ── STEP 3: DETAILS ──────────────────────────────────────────────────────
-  return (
-    <div className="max-w-3xl mx-auto pt-4 pb-24 md:pb-8 px-4">
-      <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-border">
-          <Button variant="ghost" size="sm" onClick={() => setStep("edit")} className="rounded-full">
-            <ChevronLeft className="h-4 w-4 mr-1" /> Back
-          </Button>
-          <StepIndicator />
-          <Button
-            onClick={handleSubmit}
-            disabled={isPosting}
-            className="rounded-full px-5 font-semibold"
-          >
-            {isPosting ? (
-              <span className="flex items-center gap-2">
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                {uploadMutation.isPending ? "Uploading..." : "Sharing..."}
-              </span>
-            ) : "Share"}
-          </Button>
-        </div>
-
-        <div className="flex flex-col md:flex-row">
-          {/* Left: preview strip */}
-          <div className="md:w-52 bg-black flex-shrink-0 flex items-start justify-center p-3 gap-2 flex-wrap md:flex-col md:flex-nowrap md:overflow-y-auto md:max-h-[600px]">
-            {items.map((item, i) => (
-              <div key={i} className="relative">
-                <img
-                  src={item.preview}
-                  className={cn(
-                    "w-20 h-20 md:w-full md:h-28 object-cover rounded-xl",
-                    i === 0 ? "ring-2 ring-primary" : ""
-                  )}
-                  style={{ filter: FILTERS[item.filterIndex].css }}
-                  alt={`Photo ${i + 1}`}
-                />
-                {items.length > 1 && i === 0 && (
-                  <span className="absolute top-1 left-1 bg-primary text-primary-foreground text-[9px] font-bold px-1.5 py-0.5 rounded-full">
-                    COVER
-                  </span>
-                )}
-              </div>
-            ))}
+      {/* ── STEP 3: DETAILS & PUBLISH WORKSPACE ───────────────────────── */}
+      {step === "details" && (
+        <div className="bg-card border border-border rounded-2xl overflow-hidden shadow-sm">
+          {/* Top Bar */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-muted/20">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setStep("edit")}
+              className="gap-1.5 text-xs font-semibold"
+            >
+              <ChevronLeft className="w-4 h-4" /> Back to Edit
+            </Button>
+            <StepHeader />
+            <Button
+              onClick={handleSubmit}
+              disabled={isPosting || items.length === 0}
+              className="rounded-xl px-6 font-bold shadow-md shadow-primary/20 gap-2"
+            >
+              {isPosting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {uploadProgress
+                    ? `Uploading (${uploadProgress.current}/${uploadProgress.total})...`
+                    : "Publishing..."}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="w-4 h-4" />
+                  Share Post
+                </>
+              )}
+            </Button>
           </div>
 
-          {/* Right: form */}
-          <div className="flex-1 border-t md:border-t-0 md:border-l border-border overflow-y-auto">
-            {/* Caption */}
-            <div className="relative">
-              <Textarea
-                ref={captionRef}
-                placeholder="Write a caption... use # for hashtags"
-                className="min-h-[120px] border-none focus-visible:ring-0 resize-none text-sm px-5 py-4 bg-transparent"
-                value={caption}
-                onChange={e => setCaption(e.target.value)}
-              />
-              {/* Character count */}
-              <div className="px-5 pb-1 text-right text-[11px] text-muted-foreground">
-                {caption.length} / 2200
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[500px]">
+            {/* Left: Media Preview Strip */}
+            <div className="lg:col-span-4 bg-muted/30 p-5 border-b lg:border-b-0 lg:border-r border-border space-y-4">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider block">
+                Post Preview
+              </span>
 
-              {/* Hashtag autocomplete */}
-              {hashtagSuggestions.length > 0 && (
-                <div className="absolute bottom-8 left-4 right-4 bg-popover border border-border rounded-xl shadow-lg z-20 overflow-hidden">
-                  <div className="px-3 py-2 border-b border-border">
-                    <p className="text-xs text-muted-foreground font-medium">Hashtag suggestions</p>
+              {items[0] && (
+                <div className="rounded-xl overflow-hidden border border-border bg-black shadow-md aspect-square relative">
+                  {items[0].file.type.startsWith("video/") ? (
+                    <video
+                      src={items[0].preview}
+                      className="w-full h-full object-cover"
+                      style={{ filter: FILTERS[items[0].filterIndex].css }}
+                    />
+                  ) : (
+                    <img
+                      src={items[0].preview}
+                      className="w-full h-full object-cover"
+                      style={{ filter: FILTERS[items[0].filterIndex].css }}
+                      alt="Cover Preview"
+                    />
+                  )}
+                  {items.length > 1 && (
+                    <div className="absolute top-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 backdrop-blur-sm">
+                      <Layers className="w-3 h-3" />
+                      <span>+{items.length - 1} more</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Thumbnails grid */}
+              {items.length > 1 && (
+                <div className="grid grid-cols-4 gap-2 pt-1">
+                  {items.map((item, i) => (
+                    <div
+                      key={i}
+                      className={cn(
+                        "aspect-square rounded-lg overflow-hidden border",
+                        i === 0 ? "border-primary ring-1 ring-primary" : "border-border/60"
+                      )}
+                    >
+                      <img
+                        src={item.preview}
+                        className="w-full h-full object-cover"
+                        style={{ filter: FILTERS[item.filterIndex].css }}
+                        alt={`Item ${i + 1}`}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Right: Caption & Settings Form */}
+            <div className="lg:col-span-8 p-5 sm:p-7 space-y-6">
+              {/* Caption Area */}
+              <div className="space-y-2 relative">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-bold text-foreground">Post Caption</Label>
+                  <span className="text-[11px] text-muted-foreground">
+                    {caption.length} / 2,200
+                  </span>
+                </div>
+
+                <div className="border border-border rounded-xl bg-card overflow-hidden focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all">
+                  <Textarea
+                    ref={captionRef}
+                    placeholder="Write a caption... use # for hashtags and @ to mention people"
+                    className="border-none focus-visible:ring-0 resize-none min-h-[120px] text-sm p-4 bg-transparent"
+                    value={caption}
+                    maxLength={2200}
+                    onChange={(e) => setCaption(e.target.value)}
+                  />
+
+                  {/* Emoji Quick Tray */}
+                  <div className="flex items-center justify-between px-3 py-2 border-t border-border/60 bg-muted/20">
+                    <div className="flex items-center gap-1.5 overflow-x-auto">
+                      {EMOJI_LIST.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          onClick={() => insertEmoji(emoji)}
+                          className="hover:scale-125 transition-transform text-sm p-1"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowAI(!showAI)}
+                      className="text-xs font-semibold gap-1 text-primary hover:text-primary hover:bg-primary/10 h-7 px-2"
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      AI Assist
+                    </Button>
                   </div>
-                  <div className="flex flex-wrap gap-1.5 p-2">
-                    {hashtagSuggestions.map(tag => (
+                </div>
+
+                {/* Hashtag Suggestions Dropdown */}
+                {hashtagSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-xl p-2 z-30 flex flex-wrap gap-1.5">
+                    {hashtagSuggestions.map((tag) => (
                       <button
                         key={tag}
                         onClick={() => insertHashtag(tag)}
-                        className="text-xs px-2.5 py-1 rounded-full bg-primary/10 text-primary hover:bg-primary/20 transition-colors font-medium"
+                        className="text-xs font-semibold px-2.5 py-1 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
                       >
                         #{tag}
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
-            </div>
+                )}
 
-            {/* AI Caption */}
-            <div className="border-t border-border">
-              <button
-                onClick={() => setShowAI(!showAI)}
-                className="w-full flex items-center justify-between px-5 py-3 hover:bg-muted/50 transition-colors"
-              >
-                <div className="flex items-center gap-2 text-sm font-semibold">
-                  <div className="bg-gradient-to-r from-violet-500 to-pink-500 rounded-lg p-1">
-                    <Sparkles className="h-3.5 w-3.5 text-white" />
+                {/* Mention Suggestions Dropdown */}
+                {mentionSuggestions.length > 0 && (
+                  <div className="absolute left-0 right-0 top-full mt-1 bg-popover border border-border rounded-xl shadow-xl p-2 z-30 space-y-1">
+                    {mentionSuggestions.map((u) => (
+                      <button
+                        key={u._id}
+                        onClick={() => insertMention(u.username)}
+                        className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-muted/80 text-left transition-colors"
+                      >
+                        <div className="w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-bold shrink-0">
+                          {u.username[0]?.toUpperCase()}
+                        </div>
+                        <div className="overflow-hidden">
+                          <p className="text-xs font-semibold text-foreground truncate">
+                            @{u.username}
+                          </p>
+                          {u.name && (
+                            <p className="text-[10px] text-muted-foreground truncate">{u.name}</p>
+                          )}
+                        </div>
+                      </button>
+                    ))}
                   </div>
-                  <span className="bg-gradient-to-r from-violet-600 to-pink-600 bg-clip-text text-transparent">
-                    AI Caption Generator
-                  </span>
-                </div>
-                <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", showAI && "rotate-90")} />
-              </button>
+                )}
+              </div>
 
+              {/* AI Caption Generator Panel */}
               {showAI && (
-                <div className="px-5 pb-5 space-y-3">
+                <div className="rounded-xl border border-primary/20 bg-primary/[0.03] p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-bold text-foreground">
+                        AI Caption Generator
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => setShowAI(false)}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
                   <div className="flex flex-wrap gap-1.5">
                     {AI_PROMPTS.map(({ label, prompt }) => (
                       <button
                         key={label}
                         onClick={() => handleGenerateCaption(prompt)}
                         disabled={aiGenerating}
-                        className={cn(
-                          "text-xs px-3 py-1.5 rounded-full border transition-all font-medium",
-                          "border-border hover:border-primary hover:text-primary hover:bg-primary/5",
-                          "disabled:opacity-50 disabled:cursor-not-allowed"
-                        )}
+                        className="text-xs px-3 py-1.5 rounded-lg border border-border bg-card hover:border-primary hover:text-primary transition-all font-medium disabled:opacity-50"
                       >
-                        {aiGenerating ? <RefreshCw className="h-3 w-3 animate-spin inline mr-1" /> : null}
                         {label}
                       </button>
                     ))}
                   </div>
+
                   <div className="flex gap-2">
                     <Input
-                      placeholder="Or describe your photo for a custom caption..."
+                      placeholder="Or describe the mood or theme for your caption..."
                       value={aiPrompt}
-                      onChange={e => setAiPrompt(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleGenerateCaption()}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && handleGenerateCaption()}
                       disabled={aiGenerating}
-                      className="text-sm"
+                      className="text-xs"
                     />
                     <Button
-                      onClick={() => handleGenerateCaption()}
-                      disabled={!aiPrompt.trim() || aiGenerating}
                       size="sm"
-                      className="shrink-0"
+                      onClick={() => handleGenerateCaption()}
+                      disabled={aiGenerating || !aiPrompt.trim()}
+                      className="shrink-0 text-xs font-semibold gap-1.5"
                     >
-                      {aiGenerating ? <RefreshCw className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                      {aiGenerating ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                      Generate
                     </Button>
                   </div>
-                  <p className="text-[10px] text-muted-foreground">Powered by GROQ · llama-3.1-8b</p>
                 </div>
               )}
-            </div>
 
-            {/* Location */}
-            <div className="border-t border-border px-5 py-3">
-              <div className="flex items-center gap-3">
-                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              {/* Location Tagging */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                  Add Location
+                </Label>
                 <Input
-                  placeholder="Add location..."
+                  placeholder="e.g. Amman, Jordan or Silicon Valley, CA"
                   value={location}
-                  onChange={e => setLocation(e.target.value)}
-                  className="border-none focus-visible:ring-0 bg-transparent px-0 text-sm h-7"
+                  onChange={(e) => setLocation(e.target.value)}
+                  className="text-xs"
                 />
               </div>
-            </div>
 
-            {/* Alt text */}
-            <div className="border-t border-border px-5 py-3">
-              <div className="flex items-start gap-3">
-                <Info className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium mb-1">Alt text</p>
-                  <Input
-                    placeholder="Describe photo for accessibility..."
-                    value={altText}
-                    onChange={e => setAltText(e.target.value)}
-                    className="text-sm"
-                  />
-                  <p className="text-[11px] text-muted-foreground mt-1">Helps people with visual impairments</p>
+              {/* Audience & Privacy */}
+              <div className="space-y-2">
+                <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                  <Globe className="w-3.5 h-3.5 text-muted-foreground" />
+                  Audience & Visibility
+                </Label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setAudience("everyone")}
+                    className={cn(
+                      "flex items-center gap-2.5 p-3 rounded-xl border text-xs font-semibold transition-all text-left",
+                      audience === "everyone"
+                        ? "border-primary bg-primary/10 text-primary shadow-sm"
+                        : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+                    )}
+                  >
+                    <Globe className="w-4 h-4 shrink-0" />
+                    <div>
+                      <p className="font-bold text-foreground">Everyone</p>
+                      <p className="text-[10px] text-muted-foreground font-normal">Visible to all users</p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAudience("close_friends")}
+                    className={cn(
+                      "flex items-center gap-2.5 p-3 rounded-xl border text-xs font-semibold transition-all text-left",
+                      audience === "close_friends"
+                        ? "border-emerald-500 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shadow-sm"
+                        : "border-border text-muted-foreground hover:border-emerald-500/40 hover:text-foreground"
+                    )}
+                  >
+                    <Lock className="w-4 h-4 shrink-0" />
+                    <div>
+                      <p className="font-bold text-foreground">Close Friends</p>
+                      <p className="text-[10px] text-muted-foreground font-normal">Only your private list</p>
+                    </div>
+                  </button>
                 </div>
               </div>
-            </div>
 
-            {/* Audience */}
-            <div className="border-t border-border px-5 py-3">
-              <p className="text-sm font-semibold mb-2 flex items-center gap-2">
-                <Users className="h-4 w-4" /> Audience
-              </p>
-              <div className="flex gap-2">
+              {/* Advanced Settings Accordion */}
+              <div className="border border-border rounded-xl overflow-hidden bg-card">
                 <button
-                  onClick={() => setAudience("everyone")}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-all",
-                    audience === "everyone" ? "border-primary bg-primary/10 text-primary" : "border-border hover:border-primary/40"
-                  )}
+                  type="button"
+                  onClick={() => setShowAdvanced(!showAdvanced)}
+                  className="w-full flex items-center justify-between p-4 text-xs font-bold text-foreground hover:bg-muted/30 transition-colors"
                 >
-                  <Users className="h-4 w-4" /> Everyone
-                </button>
-                <button
-                  onClick={() => setAudience("close_friends")}
-                  className={cn(
-                    "flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 text-sm font-medium transition-all",
-                    audience === "close_friends" ? "border-green-500 bg-green-500/10 text-green-600" : "border-border hover:border-green-400/40"
-                  )}
-                >
-                  <Lock className="h-4 w-4" /> Close Friends
-                </button>
-              </div>
-              {audience === "close_friends" && (
-                <p className="text-[11px] text-muted-foreground mt-1.5">Only your close friends list will see this</p>
-              )}
-            </div>
-
-            {/* Disable comments */}
-            <div className="border-t border-border px-5 py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <MessageCircleOff className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <Label htmlFor="disable-comments" className="text-sm font-medium cursor-pointer">
-                      Turn off comments
-                    </Label>
-                    <p className="text-[11px] text-muted-foreground">Nobody can comment on this post</p>
+                  <div className="flex items-center gap-2">
+                    <Settings2 className="w-4 h-4 text-muted-foreground" />
+                    <span>Advanced Settings</span>
                   </div>
-                </div>
-                <Switch
-                  id="disable-comments"
-                  checked={commentsDisabled}
-                  onCheckedChange={setCommentsDisabled}
-                />
+                  <ChevronDown
+                    className={cn("w-4 h-4 text-muted-foreground transition-transform", showAdvanced && "rotate-180")}
+                  />
+                </button>
+
+                {showAdvanced && (
+                  <div className="p-4 pt-1 border-t border-border/60 space-y-4 text-xs">
+                    {/* Disable comments switch */}
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <Label htmlFor="disable-comments" className="font-semibold text-foreground cursor-pointer">
+                          Turn Off Commenting
+                        </Label>
+                        <p className="text-[11px] text-muted-foreground">
+                          Prevent other members from leaving comments on this post.
+                        </p>
+                      </div>
+                      <Switch
+                        id="disable-comments"
+                        checked={commentsDisabled}
+                        onCheckedChange={setCommentsDisabled}
+                      />
+                    </div>
+
+                    {/* Accessibility Alt Text */}
+                    <div className="space-y-1.5 pt-2 border-t border-border/50">
+                      <Label className="font-semibold text-foreground">Accessibility Alt Text</Label>
+                      <Input
+                        placeholder="Describe your photo for visually impaired people..."
+                        value={altText}
+                        onChange={(e) => setAltText(e.target.value)}
+                        className="text-xs"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {/* Hidden File Input */}
+      <input
+        type="file"
+        ref={fileInputRef}
+        className="hidden"
+        accept="image/*,video/*"
+        multiple
+        onChange={handleFileSelect}
+      />
+
+      {/* Reel Creation Studio Modal */}
+      <CreateReelModal
+        open={reelModalOpen}
+        onOpenChange={(open) => {
+          setReelModalOpen(open);
+          if (!open) setCreationType("post");
+        }}
+        onReelCreated={() => {
+          setReelModalOpen(false);
+          setCreationType("post");
+          toast({ title: "Reel Created", description: "Your reel has been published to the feed." });
+          setLocation_("/reels");
+        }}
+      />
+
+      {/* Story Creator Studio Overlay */}
+      {storyCreatorOpen && (
+        <StoryCreator
+          onClose={() => {
+            setStoryCreatorOpen(false);
+            setCreationType("post");
+          }}
+          onSuccess={() => {
+            setStoryCreatorOpen(false);
+            setCreationType("post");
+            toast({ title: "Story Shared", description: "Your story is live for 24 hours." });
+            setLocation_("/");
+          }}
+        />
+      )}
     </div>
   );
 }

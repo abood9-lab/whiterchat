@@ -196,8 +196,37 @@ io.on("connection", (socket) => {
 
 // Connect to MongoDB then start listening
 connectDB()
-  .then(() => {
+  .then(async () => {
     logger.info("MongoDB connected");
+    try {
+      const initialAdminEmail = process.env.INITIAL_ADMIN_EMAIL?.trim().toLowerCase();
+      if (initialAdminEmail) {
+        const { User } = await import("@workspace/db");
+        const adminAcc = await User.findOne({ email: initialAdminEmail });
+        if (adminAcc) {
+          let changed = false;
+          if (adminAcc.role !== "superadmin") {
+            adminAcc.role = "superadmin";
+            changed = true;
+          }
+          if (!adminAcc.isVerified) {
+            adminAcc.isVerified = true;
+            changed = true;
+          }
+          if (adminAcc.isSuspended) {
+            adminAcc.isSuspended = false;
+            changed = true;
+          }
+          if (changed) {
+            await adminAcc.save();
+            logger.info({ email: initialAdminEmail }, "Configured superadmin for initial admin email");
+          }
+        }
+      }
+    } catch (e) {
+      logger.warn({ err: e }, "Could not check admin account on startup");
+    }
+
     httpServer.listen(port, () => {
       logger.info({ port }, "Server listening");
     });

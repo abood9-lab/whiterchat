@@ -21,19 +21,20 @@ export function SplashScreen({ onDone }: { onDone: () => void }) {
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 bg-gradient-to-br from-violet-600 via-fuchsia-600 to-orange-500 transition-opacity duration-500 ${
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center gap-6 bg-slate-950 text-white transition-opacity duration-500 ${
         fadingOut ? "opacity-0" : "opacity-100"
       }`}
     >
-      <div className="flex flex-col items-center gap-4 animate-in fade-in zoom-in-95 duration-700">
-        <div className="h-28 w-28 rounded-3xl bg-white/15 backdrop-blur-sm shadow-2xl flex items-center justify-center ring-1 ring-white/30 overflow-hidden p-2">
-          <img src="/logo.png" alt="WhiterChat" className="h-full w-full object-contain rounded-2xl" />
+      <div className="flex flex-col items-center gap-5 animate-in fade-in zoom-in-95 duration-700">
+        <div className="h-32 w-32 rounded-3xl bg-slate-900/80 backdrop-blur-md shadow-2xl flex items-center justify-center ring-1 ring-cyan-500/30 overflow-hidden p-3 relative">
+          <div className="absolute inset-0 bg-gradient-to-tr from-cyan-500/10 to-transparent pointer-events-none" />
+          <img src="/logo.png?v=3" alt="WhiterChat" className="h-full w-full object-contain rounded-2xl drop-shadow-md" />
         </div>
-        <div className="flex flex-col items-center gap-1">
-          <span className="font-serif italic text-4xl font-bold text-white tracking-tight">
+        <div className="flex flex-col items-center gap-1.5">
+          <span className="font-serif italic text-4xl sm:text-5xl font-bold text-white tracking-tight">
             WhiterChat
           </span>
-          <span className="text-xs font-medium tracking-[0.2em] uppercase text-white/70">
+          <span className="text-xs font-semibold tracking-[0.25em] uppercase text-cyan-400/90">
             Social & Messaging
           </span>
         </div>

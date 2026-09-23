@@ -76,13 +76,18 @@ export function CreateHighlightModal({ storyId, coverUrl, onClose }: CreateHighl
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="absolute inset-0 z-50 bg-black/80 flex items-end" onClick={onClose}>
+      className="fixed inset-0 z-50 bg-black/80 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <motion.div initial={{ y: 200 }} animate={{ y: 0 }} exit={{ y: 200 }} transition={{ type: "spring", damping: 25 }}
-        className="w-full bg-zinc-900 rounded-t-3xl p-5 border-t border-white/10 max-h-[70vh] flex flex-col"
+        className="w-full max-w-none sm:max-w-md bg-zinc-900 rounded-t-[28px] sm:rounded-2xl p-5 border-t sm:border border-white/10 max-h-[85dvh] sm:max-h-[70vh] flex flex-col pb-[max(1.25rem,calc(1.25rem+env(safe-area-inset-bottom)))] sm:pb-5"
         onClick={e => e.stopPropagation()}>
+        {/* Mobile handle */}
+        <div className="mx-auto -mt-2 mb-3 h-1.5 w-12 rounded-full bg-white/20 sm:hidden shrink-0 pointer-events-none" />
+
         <div className="flex items-center justify-between mb-4">
           <span className="text-white font-bold text-lg">Add to Highlight</span>
-          <button onClick={onClose}><X size={20} className="text-white/60" /></button>
+          <button onClick={onClose} className="p-1 rounded-full text-white/60 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
         </div>
 
         <div className="overflow-y-auto flex-1 flex flex-col gap-2">

@@ -73,8 +73,17 @@ export function InstallPwaModal({
   if (!isOpen && !forceOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fadeIn">
-      <div className="relative w-full max-w-md bg-card border border-border rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 text-center overflow-hidden">
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-fadeIn"
+      onClick={handleDismiss}
+    >
+      <div
+        className="relative w-full max-w-none sm:max-w-md bg-card border-t sm:border border-border rounded-t-[28px] sm:rounded-3xl shadow-2xl p-6 sm:p-8 space-y-6 text-center overflow-hidden max-h-[90dvh] overflow-y-auto pb-[max(1.5rem,calc(1.5rem+env(safe-area-inset-bottom)))] sm:pb-8"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Mobile handle */}
+        <div className="mx-auto -mt-3 -mb-2 h-1.5 w-12 rounded-full bg-muted-foreground/30 sm:hidden shrink-0 pointer-events-none" />
+
         {/* Close Button */}
         <button
           onClick={handleDismiss}
@@ -90,10 +99,10 @@ export function InstallPwaModal({
 
         <div className="space-y-2">
           <h2 className="text-2xl font-bold tracking-tight text-foreground">
-            تثبيت تطبيق WhiterChat
+            Install WhiterChat App
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            استمتع بتجربة أسرع، إشعارات فورية، واستخدام بدون إنترنت عبر تثبيت تطبيق WhiterChat على شاشتك الرئيسية!
+            Enjoy a faster experience, instant notifications, and full-screen view by installing WhiterChat on your device.
           </p>
         </div>
 
@@ -101,19 +110,19 @@ export function InstallPwaModal({
         <div className="grid grid-cols-2 gap-3 text-xs text-start bg-muted/40 p-4 rounded-2xl border border-border/60">
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-            <span className="font-medium text-foreground">وصول فوري وسريع</span>
+            <span className="font-medium text-foreground">Instant Fast Access</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-            <span className="font-medium text-foreground">إشعارات الرسائل</span>
+            <span className="font-medium text-foreground">Push Notifications</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-            <span className="font-medium text-foreground">شاشة كاملة بدون إطار</span>
+            <span className="font-medium text-foreground">Full-screen Window</span>
           </div>
           <div className="flex items-center gap-2">
             <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
-            <span className="font-medium text-foreground">يعمل دون اتصال</span>
+            <span className="font-medium text-foreground">Offline Reliability</span>
           </div>
         </div>
 
@@ -124,14 +133,14 @@ export function InstallPwaModal({
             className="w-full h-12 rounded-2xl font-bold gap-2 text-base shadow-lg shadow-primary/25"
           >
             <Download className="w-5 h-5" />
-            تثبيت التطبيق الآن
+            Install App Now
           </Button>
           <Button
             variant="ghost"
             onClick={handleDismiss}
             className="text-xs text-muted-foreground hover:text-foreground"
           >
-            ليس الآن
+            Not now
           </Button>
         </div>
       </div>

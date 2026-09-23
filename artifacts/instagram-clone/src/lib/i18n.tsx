@@ -20,15 +20,15 @@ const I18nContext = createContext<I18nContextType>({
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Language>(() => {
-    const saved = localStorage.getItem("whiterchat_lang") as Language;
+    const saved = localStorage.getItem("pixlr_lang") as Language;
     if (saved === "ar" || saved === "en") return saved;
-    // Default to en or detect browser
-    return navigator.language.startsWith("ar") ? "ar" : "en";
+    // WhiterChat default language is strictly English unless explicitly changed by user
+    return "en";
   });
 
   const setLang = (newLang: Language) => {
     setLangState(newLang);
-    localStorage.setItem("whiterchat_lang", newLang);
+    localStorage.setItem("pixlr_lang", newLang);
   };
 
   const toggleLang = () => {

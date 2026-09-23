@@ -18,6 +18,8 @@ import {
   Users,
   Check,
   Plus,
+  ShieldAlert,
+  CreditCard,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "./ui/button";
@@ -33,11 +35,23 @@ import {
 import { useTheme } from "./theme-provider";
 import { useEffect } from "react";
 import { initSocket, disconnectSocket } from "@/lib/socket";
+import { useNavigationState } from "@/lib/navigation-context";
+import { CallOverlay } from "./chat/CallOverlay";
+import { IncomingCallBanner } from "./chat/IncomingCallBanner";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, token, logout, accounts, switchAccount } = useAuth();
   const [location] = useLocation();
   const { theme, setTheme } = useTheme();
+  const {
+    showMobileBottomNav,
+    hideMobileHeader,
+    callState,
+    endCall,
+    isCallMinimized,
+    setIsCallMinimized,
+    setCallState,
+  } = useNavigationState();
 
   useEffect(() => {
     if (token) {
@@ -73,7 +87,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
     location === "/accessibility" ||
     location === "/rules" ||
     location === "/business" ||
-    location === "/advertising";
+    location === "/advertising" ||
+    location.startsWith("/admin");
 
   if (isInstitutionalPage) {
     return <>{children}</>;
@@ -91,7 +106,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur-md">
           <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-6">
-              <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
+              <Link href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+                <img src="/logo.png?v=3" alt="WhiterChat Logo" className="w-8 h-8 rounded-full object-cover shadow-sm ring-1 ring-border/40" />
                 <span className="font-serif text-2xl sm:text-3xl font-bold italic tracking-tighter">
                   WhiterChat
                 </span>
@@ -190,7 +206,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 border-r border-border fixed h-full p-4 gap-4 bg-card z-50">
         <div className="px-4 py-6 flex items-center justify-between">
-          <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
+          <Link href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+            <img src="/logo.png?v=3" alt="WhiterChat Logo" className="w-8 h-8 rounded-full object-cover shadow-sm ring-1 ring-border/40" />
             <span className="font-serif text-2xl sm:text-3xl font-bold italic tracking-tighter">
               WhiterChat
             </span>
@@ -293,6 +310,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
 
+          {["superadmin", "admin", "moderator", "support"].includes((user as any).role) && (
+            <Link
+              href="/admin"
+              className={cn(
+                "flex items-center gap-4 px-4 py-3 rounded-lg text-base font-medium transition-all hover:bg-secondary text-destructive hover:text-destructive",
+                location.startsWith("/admin") && "font-bold bg-destructive/10"
+              )}
+            >
+              <ShieldAlert className="w-6 h-6" />
+              <span>Admin Portal</span>
+            </Link>
+          )}
+
+          <Link
+            href="/settings?tab=plans"
+            className={cn(
+              "flex items-center gap-4 px-4 py-3 rounded-lg text-base font-medium transition-all hover:bg-secondary text-muted-foreground hover:text-foreground",
+              location === "/plans" && "font-bold text-foreground"
+            )}
+          >
+            <CreditCard className="w-6 h-6" />
+            <span>Plans & Billing</span>
+          </Link>
+
           <Link
             href="/settings"
             className={cn(
@@ -323,53 +364,81 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 pb-[calc(4rem+env(safe-area-inset-bottom))] md:pb-0 min-h-[100dvh]">
-        <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card sticky top-0 z-50">
-          <Link href="/" className="flex items-center hover:opacity-90 transition-opacity">
-            <span className="font-serif text-lg font-bold italic tracking-tighter">WhiterChat</span>
-          </Link>
-          <div className="flex items-center gap-2">
-             <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              >
-                {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-              </Button>
-              <Link
-                href="/messages"
-                aria-label="Messages"
-                className={cn(
-                  "p-2 rounded-lg transition-colors inline-flex items-center justify-center",
-                  isMessagesActive
-                    ? "text-foreground"
-                    : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-                )}
-              >
-                <MessageCircle className={cn("w-5 h-5", isMessagesActive && "fill-foreground")} />
-              </Link>
+      <main className={cn(
+        "flex-1 md:ml-64 md:pb-0 min-h-[100dvh]",
+        (location === "/reels" || location.startsWith("/reels") || location.startsWith("/reel")) && "h-[100dvh] max-h-[100dvh] overflow-hidden",
+        showMobileBottomNav ? "pb-[calc(4rem+env(safe-area-inset-bottom))]" : "pb-0"
+      )}>
+        {!hideMobileHeader && (
+          <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card sticky top-0 z-50">
+            <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
+              <img src="/logo.png?v=3" alt="WhiterChat Logo" className="w-7 h-7 rounded-full object-cover shadow-sm ring-1 ring-border/40" />
+              <span className="font-serif text-lg font-bold italic tracking-tighter">WhiterChat</span>
+            </Link>
+            <div className="flex items-center gap-2">
+               <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                >
+                  {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </Button>
+                <Link
+                  href="/messages"
+                  aria-label="Messages"
+                  className={cn(
+                    "p-2 rounded-lg transition-colors inline-flex items-center justify-center",
+                    isMessagesActive
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+                  )}
+                >
+                  <MessageCircle className={cn("w-5 h-5", isMessagesActive && "fill-foreground")} />
+                </Link>
+            </div>
           </div>
-        </div>
+        )}
         {children}
       </main>
 
       {/* Mobile Bottom Nav */}
-      <nav className={cn("md:hidden fixed bottom-0 w-full bg-card border-t border-border flex items-center justify-around p-2 z-50", location === "/snap" && "hidden")} style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}>
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={cn(
-              "p-3 rounded-xl transition-colors",
-              location === item.href || (item.href !== "/" && location.startsWith(item.href))
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-            )}
-          >
-            <item.icon className={cn("w-6 h-6", location === item.href && "fill-foreground")} />
-          </Link>
-        ))}
-      </nav>
+      {showMobileBottomNav && (
+        <nav
+          className="md:hidden fixed bottom-0 w-full bg-card border-t border-border flex items-center justify-around p-2 z-50 animate-in fade-in duration-200"
+          style={{ paddingBottom: 'max(0.5rem, env(safe-area-inset-bottom))' }}
+        >
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "p-3 rounded-xl transition-colors",
+                location === item.href || (item.href !== "/" && location.startsWith(item.href))
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+              )}
+            >
+              <item.icon className={cn("w-6 h-6", location === item.href && "fill-foreground")} />
+            </Link>
+          ))}
+        </nav>
+      )}
+
+      {/* Incoming Call Notification Banner */}
+      <IncomingCallBanner />
+
+      {/* Global Call Overlay */}
+      <CallOverlay
+        callState={callState}
+        onClose={endCall}
+        myUserId={user?.id ?? ""}
+        myUser={user}
+        isMinimized={isCallMinimized}
+        onMinimizedChange={setIsCallMinimized}
+        onStatusChange={(status) => {
+          setCallState((prev) => (prev ? { ...prev, status } : null));
+        }}
+      />
 
       {/* Floating chat bubble — shown on all pages except /messages and /snap */}
       <FloatingChat />

@@ -26,14 +26,14 @@ async function buildVaultedConversation(convId: string, meId: string) {
 }
 
 router.get("/vault/status", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  const user = await User.findById(req.userId).select("vaultPin");
+  const user = await User.findById(req.userId).select("+vaultPin");
   res.json({ hasPin: !!user?.vaultPin });
 });
 
 router.post("/vault/pin", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const { pin, currentPin } = req.body as { pin?: string; currentPin?: string };
   if (!pin || pin.length < 4) { res.status(400).json({ error: "PIN must be at least 4 digits" }); return; }
-  const user = await User.findById(req.userId).select("vaultPin");
+  const user = await User.findById(req.userId).select("+vaultPin");
   if (user?.vaultPin) {
     if (!currentPin) { res.status(400).json({ error: "Current PIN required to change PIN" }); return; }
     const valid = await bcrypt.compare(currentPin, user.vaultPin);
@@ -46,7 +46,7 @@ router.post("/vault/pin", requireAuth, async (req: AuthRequest, res): Promise<vo
 router.post("/vault/unlock", requireAuth, vaultLimiter, async (req: AuthRequest, res): Promise<void> => {
   const { pin } = req.body as { pin?: string };
   if (!pin) { res.status(400).json({ error: "PIN required" }); return; }
-  const user = await User.findById(req.userId).select("vaultPin");
+  const user = await User.findById(req.userId).select("+vaultPin");
   if (!user?.vaultPin) { res.status(400).json({ error: "Vault PIN not set" }); return; }
   const valid = await bcrypt.compare(pin, user.vaultPin);
   if (!valid) { res.status(401).json({ error: "Wrong PIN" }); return; }

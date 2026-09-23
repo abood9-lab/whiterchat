@@ -10,10 +10,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { ShieldCheck, KeyRound, Loader2, ArrowLeft } from "lucide-react";
-
-function apiUrl(path: string) {
-  return path;
-}
+import { apiUrl } from "@/lib/api-url";
+import { ForgotPasswordModal } from "@/components/auth/ForgotPasswordModal";
 
 const loginSchema = z.object({
   identifier: z.string().min(1, "Username or email is required"),
@@ -31,6 +29,7 @@ export default function Login() {
   const [requires2FA, setRequires2FA] = useState(false);
   const [twoFactorCode, setTwoFactorCode] = useState("");
   const [cachedCredentials, setCachedCredentials] = useState<{ identifier: string; password: string } | null>(null);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -54,6 +53,15 @@ export default function Login() {
 
       const response = await res.json();
       if (!res.ok) {
+        if (res.status === 403 && response.unverifiedEmail) {
+          toast({
+            title: "Account Not Verified",
+            description: "Please check your email to verify your account or complete registration.",
+            variant: "destructive",
+          });
+          return;
+        }
+
         toast({
           title: "Login failed",
           description: response.error || "Invalid credentials",
@@ -133,8 +141,11 @@ export default function Login() {
         animate={{ opacity: 1, y: 0 }}
         className="w-full max-w-sm space-y-7 bg-card p-6 sm:p-8 rounded-2xl border border-border shadow-xl"
       >
-        <div className="text-center space-y-1.5">
-          <h1 className="font-serif text-5xl font-bold italic tracking-tighter mb-2">WhiterChat</h1>
+        <div className="text-center space-y-2 flex flex-col items-center">
+          <div className="w-16 h-16 rounded-2xl bg-secondary/50 p-2 ring-1 ring-border/50 shadow-md flex items-center justify-center">
+            <img src="/logo.png?v=3" alt="WhiterChat Logo" className="w-full h-full object-contain rounded-xl" />
+          </div>
+          <h1 className="font-serif text-4xl sm:text-5xl font-bold italic tracking-tighter mb-1">WhiterChat</h1>
           <p className="text-muted-foreground text-xs sm:text-sm">
             {requires2FA
               ? "Enter your 2FA code or backup code to continue"
@@ -164,7 +175,16 @@ export default function Login() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-xs font-semibold">Password</FormLabel>
+                      <div className="flex items-center justify-between">
+                        <FormLabel className="text-xs font-semibold">Password</FormLabel>
+                        <button
+                          type="button"
+                          onClick={() => setIsForgotPasswordOpen(true)}
+                          className="text-xs text-primary hover:underline font-medium"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
                       <FormControl>
                         <Input type="password" placeholder="Enter password" {...field} className="h-10 text-sm" />
                       </FormControl>
@@ -246,6 +266,24 @@ export default function Login() {
           </Link>
         </div>
       </motion.div>
+
+      {/* Real Email Password Reset Modal */}
+      <ForgotPasswordModal
+        isOpen={isForgotPasswordOpen}
+        onClose={() => setIsForgotPasswordOpen(false)}
+        initialEmail={
+          form.getValues("identifier").includes("@")
+            ? form.getValues("identifier")
+            : ""
+        }
+        onSuccessLogin={(email) => {
+          form.setValue("identifier", email);
+          toast({
+            title: "Password updated!",
+            description: "Please sign in with your new password.",
+          });
+        }}
+      />
     </div>
   );
 }

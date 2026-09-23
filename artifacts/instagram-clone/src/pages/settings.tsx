@@ -30,10 +30,13 @@ import {
   X,
   Users,
   LifeBuoy,
+  BadgeCheck,
+  CreditCard,
 } from "lucide-react";
 
 // Sub-components
 import { EditProfileSection } from "@/components/settings/EditProfileSection";
+import { PlansBillingSection } from "@/components/settings/PlansBillingSection";
 import { PersonalInfoSection } from "@/components/settings/PersonalInfoSection";
 import { SecuritySection } from "@/components/settings/SecuritySection";
 import { PrivacySection } from "@/components/settings/PrivacySection";
@@ -53,10 +56,13 @@ import { CreatorDashboardSection } from "@/components/settings/CreatorDashboardS
 import { AccountActionsSection } from "@/components/settings/AccountActionsSection";
 import { MultiAccountSection } from "@/components/settings/MultiAccountSection";
 import { FeedbackCenterSection } from "@/components/settings/FeedbackCenterSection";
+import { VerificationSection } from "@/components/settings/VerificationSection";
 import { InstallPwaModal } from "@/components/InstallPwaModal";
 
 export type SettingsTab =
   | "profile"
+  | "plans"
+  | "verification"
   | "personal"
   | "multi-account"
   | "creator"
@@ -100,6 +106,20 @@ const SETTINGS_GROUPS: SettingGroup[] = [
         desc: "Name, username, bio, banner, avatar & custom links",
         icon: User,
         keywords: ["profile", "bio", "avatar", "photo", "username", "cover", "banner", "links", "pronouns"],
+      },
+      {
+        id: "plans",
+        label: "Plans & Subscriptions",
+        desc: "Free, Pro, VIP, or Business: upgrade capabilities, quotas & billing",
+        icon: CreditCard,
+        keywords: ["subscription", "pro", "vip", "business", "plan", "upgrade", "billing", "pricing", "limits", "quota"],
+      },
+      {
+        id: "verification",
+        label: "Verification & Badges",
+        desc: "Request official verification badge, choose subscription plan & manual payment",
+        icon: BadgeCheck,
+        keywords: ["verification", "verified", "badge", "check", "blue check", "gold badge", "plans", "payment"],
       },
       {
         id: "multi-account",
@@ -257,6 +277,7 @@ export default function SettingsPage() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<SettingsTab>(() => {
     if (typeof window !== "undefined") {
+      if (window.location.pathname.includes("/plans")) return "plans";
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab");
       if (tabParam) return tabParam as SettingsTab;
@@ -267,6 +288,7 @@ export default function SettingsPage() {
   const [pwaModalOpen, setPwaModalOpen] = useState(false);
   const [mobileSubPageOpen, setMobileSubPageOpen] = useState(() => {
     if (typeof window !== "undefined") {
+      if (window.location.pathname.includes("/plans")) return true;
       const params = new URLSearchParams(window.location.search);
       return !!params.get("tab");
     }
@@ -276,6 +298,11 @@ export default function SettingsPage() {
   // Listen for query params changes
   useEffect(() => {
     if (typeof window !== "undefined") {
+      if (window.location.pathname.includes("/plans")) {
+        setActiveTab("plans");
+        setMobileSubPageOpen(true);
+        return;
+      }
       const params = new URLSearchParams(window.location.search);
       const tabParam = params.get("tab") as SettingsTab | null;
       if (tabParam) {
@@ -328,6 +355,10 @@ export default function SettingsPage() {
     switch (activeTab) {
       case "profile":
         return <EditProfileSection />;
+      case "plans":
+        return <PlansBillingSection />;
+      case "verification":
+        return <VerificationSection />;
       case "multi-account":
         return <MultiAccountSection />;
       case "personal":
@@ -529,8 +560,8 @@ export default function SettingsPage() {
                   <Download className="w-5 h-5" />
                 </div>
                 <div>
-                  <h4 className="font-bold text-xs text-foreground">تثبيت تطبيق WhiterChat</h4>
-                  <p className="text-[11px] text-muted-foreground">احصل على التطبيق على جهازك</p>
+                  <h4 className="font-bold text-xs text-foreground">Install WhiterChat</h4>
+                  <p className="text-[11px] text-muted-foreground">Get the app on your home screen or desktop</p>
                 </div>
               </div>
               <Button
@@ -539,7 +570,7 @@ export default function SettingsPage() {
                 className="w-full h-9 text-xs font-bold rounded-xl gap-2 shadow-sm"
               >
                 <Download className="w-3.5 h-3.5" />
-                تثبيت أو تنزيل التطبيق
+                Install or Download App
               </Button>
             </div>
 

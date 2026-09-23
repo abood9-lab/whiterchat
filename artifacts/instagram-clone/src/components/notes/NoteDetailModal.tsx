@@ -89,12 +89,15 @@ export function NoteDetailModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-h-[90vh] overflow-y-auto rounded-t-[28px] bg-card border border-border shadow-2xl sm:max-w-md sm:rounded-[28px] flex flex-col"
+        className="w-full max-h-[90vh] overflow-y-auto rounded-t-[28px] bg-card border-t sm:border border-border shadow-2xl sm:max-w-md sm:rounded-[28px] flex flex-col"
         onClick={e => e.stopPropagation()}
         style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
       >
+        {/* Mobile handle */}
+        <div className="mx-auto mt-2.5 -mb-1 h-1.5 w-12 rounded-full bg-muted-foreground/30 sm:hidden shrink-0 pointer-events-none" />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border/70 shrink-0">
+        <div className="flex items-center justify-between px-5 pt-3.5 pb-3 border-b border-border/70 shrink-0">
           <div className="flex items-center gap-3">
             <div className="relative">
               <Avatar className={cn("h-10 w-10 border-2", isCloseFriends ? "border-emerald-500" : "border-border")}>

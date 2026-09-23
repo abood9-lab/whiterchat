@@ -34,7 +34,7 @@ export function PrivacySection() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const privacySettings = {
         privateAccount: isPrivate,
         whoCanMessage,

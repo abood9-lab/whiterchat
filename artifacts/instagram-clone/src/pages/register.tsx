@@ -181,7 +181,7 @@ export default function Register() {
         setResendCooldown(60);
         toast({
           title: "Verification code sent!",
-          description: `We've sent a 6-digit code to ${email}`,
+          description: data.message || `We've sent a 6-digit code to ${email}`,
         });
       } else {
         toast({
@@ -261,7 +261,7 @@ export default function Register() {
       const data = await res.json();
       if (res.ok) {
         setResendCooldown(60);
-        toast({ title: "New code sent to your email!" });
+        toast({ title: "New code sent!", description: data.message });
       } else {
         toast({
           title: "Failed to resend",
@@ -284,7 +284,10 @@ export default function Register() {
         className="w-full max-w-md bg-card p-6 sm:p-8 rounded-2xl border border-border shadow-xl space-y-6"
       >
         {/* Brand Header */}
-        <div className="text-center space-y-1">
+        <div className="text-center space-y-2 flex flex-col items-center">
+          <div className="w-16 h-16 rounded-2xl bg-secondary/50 p-2 ring-1 ring-border/50 shadow-md flex items-center justify-center">
+            <img src="/logo.png?v=3" alt="WhiterChat Logo" className="w-full h-full object-contain rounded-xl" />
+          </div>
           <h1 className="font-serif text-4xl sm:text-5xl font-bold italic tracking-tight text-foreground">
             WhiterChat
           </h1>
@@ -513,6 +516,15 @@ export default function Register() {
                   We've sent a 6-digit verification code to{" "}
                   <strong className="text-foreground font-medium">{email}</strong>.
                   Please enter the code to activate your account.
+                </p>
+              </div>
+
+              <div className="p-3 bg-muted/50 border border-border/60 rounded-xl text-xs space-y-1 text-muted-foreground">
+                <div className="flex items-center gap-1.5 font-medium text-foreground text-[11px]">
+                  <span>📧 Tip: Check your inbox or spam folder</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  Real emails usually arrive within 5–30 seconds. If you do not see it in your primary inbox, please check your spam or promotions folder.
                 </p>
               </div>
 

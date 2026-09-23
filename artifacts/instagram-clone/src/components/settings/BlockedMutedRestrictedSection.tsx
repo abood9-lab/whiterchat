@@ -97,10 +97,11 @@ export function BlockedMutedRestrictedSection() {
   };
 
   const filterList = (list: ManagedUser[]) => {
-    if (!searchQuery) return list;
-    const q = searchQuery.toLowerCase();
-    return list.filter(
-      (u) => u.username.toLowerCase().includes(q) || u.fullName?.toLowerCase().includes(q)
+    const safe = Array.isArray(list) ? list.filter((u) => Boolean(u && u.username)) : [];
+    if (!searchQuery.trim()) return safe;
+    const q = searchQuery.trim().toLowerCase();
+    return safe.filter(
+      (u) => (u.username || "").toLowerCase().includes(q) || (u.fullName || "").toLowerCase().includes(q)
     );
   };
 

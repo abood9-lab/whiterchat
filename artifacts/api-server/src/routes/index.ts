@@ -24,9 +24,15 @@ import spotifyRouter from "./spotify";
 import feedbackRouter from "./feedback";
 import seoRouter from "./seo";
 import institutionalRouter from "./institutional";
+import verificationRouter from "./verification";
+import plansRouter from "./plans";
+import adminRouter from "./admin";
 
 const router: IRouter = Router();
 
+router.use("/admin", adminRouter);
+router.use(verificationRouter);
+router.use(plansRouter);
 router.use(healthRouter);
 router.use(seoRouter);
 router.use(institutionalRouter);

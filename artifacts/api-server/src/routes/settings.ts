@@ -5,6 +5,7 @@ import { uploadBase64 } from "../lib/cloudinary";
 import mongoose from "mongoose";
 import crypto from "crypto";
 import { generateTotpSecret, generateKeyUri, verifyTotpToken } from "../lib/totp";
+import { planService } from "../services/planService";
 import qrcode from "qrcode";
 
 const router: IRouter = Router();
@@ -522,6 +523,22 @@ router.get("/users/me/collections", requireAuth, async (req: AuthRequest, res): 
 router.post("/users/me/collections", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const { name, coverUrl } = req.body as { name?: string; coverUrl?: string };
   if (!name?.trim()) { res.status(400).json({ error: "Collection name required" }); return; }
+
+  const user = await User.findById(req.userId);
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+
+  const currentCount = user.savedCollections?.length || 0;
+  const maxAllowed = await planService.getPlanLimit(user, "maxSavedCollections", 5);
+
+  if (currentCount >= maxAllowed) {
+    res.status(400).json({
+      error: `You have reached the maximum of ${maxAllowed} saved collections for your plan. Upgrade to organize more collections.`,
+      code: "LIMIT_REACHED",
+      maxAllowed,
+      upgradeRequired: true,
+    });
+    return;
+  }
   
   const newCollection = {
     id: crypto.randomUUID(),
@@ -730,7 +747,7 @@ router.post("/users/me/change-email", requireAuth, async (req: AuthRequest, res)
   if (!newEmail || !password) { res.status(400).json({ error: "newEmail and password are required" }); return; }
   
   const cleanEmail = newEmail.trim().toLowerCase();
-  const user = await User.findById(req.userId);
+  const user = await User.findById(req.userId).select("+passwordHash");
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   
   const valid = await comparePassword(password, user.passwordHash);
@@ -751,7 +768,7 @@ router.post("/users/me/change-phone", requireAuth, async (req: AuthRequest, res)
   const { phoneNumber, password } = req.body as { phoneNumber?: string; password?: string };
   if (!password) { res.status(400).json({ error: "Password is required" }); return; }
   
-  const user = await User.findById(req.userId);
+  const user = await User.findById(req.userId).select("+passwordHash");
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   
   const valid = await comparePassword(password, user.passwordHash);
@@ -767,7 +784,7 @@ router.post("/users/me/deactivate", requireAuth, async (req: AuthRequest, res): 
   const { password } = req.body as { password?: string };
   if (!password) { res.status(400).json({ error: "Password is required to deactivate" }); return; }
   
-  const user = await User.findById(req.userId);
+  const user = await User.findById(req.userId).select("+passwordHash");
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   const valid = await comparePassword(password, user.passwordHash);
   if (!valid) { res.status(400).json({ error: "Incorrect password" }); return; }
@@ -788,7 +805,7 @@ router.post(["/users/me/delete", "/users/me/delete-account"], requireAuth, async
     return;
   }
   
-  const user = await User.findById(req.userId);
+  const user = await User.findById(req.userId).select("+passwordHash");
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   const valid = await comparePassword(password, user.passwordHash);
   if (!valid) { res.status(400).json({ error: "Incorrect password" }); return; }

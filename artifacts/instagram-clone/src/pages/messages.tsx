@@ -33,13 +33,14 @@ import { MessageBubble, type ChatMessage } from "@/components/chat/MessageBubble
 import { MessageInput } from "@/components/chat/MessageInput";
 import { apiUrl } from "@/lib/api-url";
 import { ChatCommandCenter } from "@/components/chat/ChatCommandCenter";
-import { CallOverlay, type CallState } from "@/components/chat/CallOverlay";
+import type { CallState } from "@/components/chat/CallOverlay";
+import { useNavigationState } from "@/lib/navigation-context";
 import { MusicPickerModal } from "@/components/chat/MusicPickerModal";
 import { GiphyPickerModal } from "@/components/chat/GiphyPickerModal";
 import { UserContextMenu, type UserMenuTarget } from "@/components/chat/UserContextMenu";
 
 async function apiRequest(path: string, opts: RequestInit = {}) {
-  const token = localStorage.getItem("whiterchat_token") ?? "";
+  const token = localStorage.getItem("pixlr_token") ?? "";
   const r = await fetch(apiUrl(`/api/${path}`), {
     ...opts,
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(opts.headers ?? {}) },
@@ -88,10 +89,19 @@ const QUICK_REPLIES = [
 export default function Messages() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+  const {
+    activeConversationId,
+    setActiveConversationId,
+    startCall,
+    callState,
+    setCallState,
+    isPrivateChat,
+  } = useNavigationState();
 
-  // Conversation state
-  const [activeConvId, setActiveConvId] = useState<string | null>(null);
+  // Active conversation is managed via centralized navigation state
+  const activeConvId = activeConversationId;
+  const setActiveConvId = setActiveConversationId;
   const [messageText, setMessageText] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [otherTyping, setOtherTyping] = useState(false);
@@ -103,17 +113,17 @@ export default function Messages() {
   const [conversationQuery, setConversationQuery] = useState("");
   const [showChatTools, setShowChatTools] = useState(false);
   const [focusMode, setFocusMode] = useState(() => {
-    try { return localStorage.getItem("whiterchat-chat-focus") === "1"; } catch { return false; }
+    try { return localStorage.getItem("pixlr-chat-focus") === "1"; } catch { return false; }
   });
   const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [isCopying, setIsCopying] = useState(false);
   const [compactMode, setCompactMode] = useState(() => {
-    try { return localStorage.getItem("whiterchat-chat-compact") === "1"; } catch { return false; }
+    try { return localStorage.getItem("pixlr-chat-compact") === "1"; } catch { return false; }
   });
   const [chatTheme, setChatTheme] = useState<"default" | "violet" | "mint" | "sunset">(() => {
     try {
-      const stored = localStorage.getItem("whiterchat-chat-theme");
+      const stored = localStorage.getItem("pixlr-chat-theme");
       return stored === "violet" || stored === "mint" || stored === "sunset" ? stored : "default";
     } catch { return "default"; }
   });
@@ -143,8 +153,7 @@ export default function Messages() {
   // Forward
   const [forwardingMsg, setForwardingMsg] = useState<ChatMessage | null>(null);
 
-  // WebRTC Call & Pickers state
-  const [callState, setCallState] = useState<CallState | null>(null);
+  // WebRTC Pickers state
   const [showMusicPicker, setShowMusicPicker] = useState(false);
   const [showGiphyPicker, setShowGiphyPicker] = useState(false);
 
@@ -183,13 +192,17 @@ export default function Messages() {
 
   // API hooks
   const { data: allConversations } = useGetConversations();
+  const safeAllConversations = useMemo(
+    () => (Array.isArray(allConversations) ? (allConversations as any[]) : []),
+    [allConversations]
+  );
   const sendMutation = useSendMessage();
   const markReadMutation = useMarkConversationRead();
   const createConvMutation = useCreateConversation();
 
   const conversations = useMemo(() => {
     const query = conversationQuery.trim().toLowerCase();
-    return (allConversations as any[] ?? []).filter((c: any) => {
+    return safeAllConversations.filter((c: any) => {
       if (tab === "requests" ? !c.isRequest : c.isRequest) return false;
       if (conversationFilter === "unread" && !(c.unreadCount > 0)) return false;
       if (conversationFilter === "groups" && !c.isGroup) return false;
@@ -198,18 +211,18 @@ export default function Messages() {
       const name = c.isGroup ? c.groupName : `${c.otherUser?.fullName ?? ""} ${c.otherUser?.username ?? ""}`;
       return `${name} ${c.lastMessage ?? ""}`.toLowerCase().includes(query);
     });
-  }, [allConversations, tab, conversationFilter, conversationQuery]);
+  }, [safeAllConversations, tab, conversationFilter, conversationQuery]);
 
-  const activeConv = (allConversations as any[] ?? []).find((c: any) => c.id === activeConvId);
+  const activeConv = safeAllConversations.find((c: any) => c.id === activeConvId);
   const activeConvRef = useRef<any>(null);
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
   useEffect(() => {
-    try { localStorage.setItem("whiterchat-chat-focus", focusMode ? "1" : "0"); } catch {}
+    try { localStorage.setItem("pixlr-chat-focus", focusMode ? "1" : "0"); } catch {}
   }, [focusMode]);
   useEffect(() => {
     try {
-      localStorage.setItem("whiterchat-chat-compact", compactMode ? "1" : "0");
-      localStorage.setItem("whiterchat-chat-theme", chatTheme);
+      localStorage.setItem("pixlr-chat-compact", compactMode ? "1" : "0");
+      localStorage.setItem("pixlr-chat-theme", chatTheme);
     } catch {}
   }, [compactMode, chatTheme]);
 
@@ -222,7 +235,7 @@ export default function Messages() {
       return;
     }
     let saved = "";
-    try { saved = localStorage.getItem(`whiterchat-draft:${activeConvId}`) ?? ""; } catch {}
+    try { saved = localStorage.getItem(`pixlr-draft:${activeConvId}`) ?? ""; } catch {}
     draftLoadedForRef.current = activeConvId;
     setMessageText(saved);
     setDraftSaved(Boolean(saved));
@@ -232,10 +245,10 @@ export default function Messages() {
     if (!activeConvId || draftLoadedForRef.current !== activeConvId) return;
     try {
       if (messageText.trim()) {
-        localStorage.setItem(`whiterchat-draft:${activeConvId}`, messageText);
+        localStorage.setItem(`pixlr-draft:${activeConvId}`, messageText);
         setDraftSaved(true);
       } else {
-        localStorage.removeItem(`whiterchat-draft:${activeConvId}`);
+        localStorage.removeItem(`pixlr-draft:${activeConvId}`);
         setDraftSaved(false);
       }
     } catch {}
@@ -616,16 +629,13 @@ export default function Messages() {
 
   const handleStartCall = useCallback((callType: "voice" | "video") => {
     if (!activeConv || !otherUserId) return;
-    setCallState({
-      active: true,
+    startCall({
       conversationId: activeConv.id,
       targetUserId: otherUserId,
       targetUser: activeConv.otherUser,
       callType,
-      isIncoming: false,
-      status: "ringing",
     });
-  }, [activeConv, otherUserId]);
+  }, [activeConv, otherUserId, startCall]);
 
   const chatTranscript = useMemo(() => {
     const nameFor = (senderId: string) => senderId === user?.id
@@ -669,7 +679,7 @@ export default function Messages() {
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = url;
-      anchor.download = `whiterchat-${activeConv?.otherUser?.username ?? activeConv?.groupName ?? "chat"}-${format(new Date(), "yyyy-MM-dd")}.txt`;
+      anchor.download = `pixlr-${activeConv?.otherUser?.username ?? activeConv?.groupName ?? "chat"}-${format(new Date(), "yyyy-MM-dd")}.txt`;
       document.body.appendChild(anchor);
       anchor.click();
       anchor.remove();
@@ -872,6 +882,7 @@ export default function Messages() {
 
   const handleSelectConv = (convId: string) => {
     setActiveConvId(convId);
+    setLocation(`/messages/${convId}`);
     setOtherTyping(false); setReplyTo(null); setEditingMsg(null);
     setSearchMode(false); setSearchQuery(""); setShowInfo(false); setShowChatTools(false);
     setShowPreferences(false);
@@ -881,6 +892,44 @@ export default function Messages() {
     Object.values(groupTypingTimeoutsRef.current).forEach(clearTimeout);
     groupTypingTimeoutsRef.current = {};
   };
+
+  const handleBackToList = () => {
+    setActiveConvId(null);
+    setLocation("/messages");
+  };
+
+  // Synchronize URL query parameters (?id=... or ?user=...) with active conversation
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const queryId = params.get("id") || params.get("conv");
+    const queryUser = params.get("user");
+
+    if (queryId) {
+      setActiveConvId(queryId);
+      setLocation(`/messages/${queryId}`);
+    } else if (queryUser && conversations) {
+      const existing = (conversations as any[]).find(
+        (c) => !c.isGroup && c.otherUser?.username?.toLowerCase() === queryUser.toLowerCase()
+      );
+      if (existing) {
+        setActiveConvId(existing.id);
+        setLocation(`/messages/${existing.id}`);
+      }
+    }
+  }, [conversations, setLocation, setActiveConvId]);
+
+  // Synchronize when navigating back to /messages via browser back button
+  useEffect(() => {
+    if (location === "/messages") {
+      const search = typeof window !== "undefined" ? window.location.search : "";
+      if (!search.includes("id=") && !search.includes("conv=") && !search.includes("user=")) {
+        if (activeConvId !== null) {
+          setActiveConvId(null);
+        }
+      }
+    }
+  }, [location, activeConvId, setActiveConvId]);
 
   const handleCreateGroup = async (groupData: { name: string; description: string; memberUsernames: string[]; avatarData?: string }) => {
     try {
@@ -917,14 +966,14 @@ export default function Messages() {
   };
 
   const requestCount = useMemo(
-    () => (allConversations as any[] ?? []).filter((c: any) => c.isRequest).length,
-    [allConversations]
+    () => safeAllConversations.filter((c: any) => c.isRequest).length,
+    [safeAllConversations]
   );
 
   return (
     <>
     {/* Main layout */}
-    <div className="ig-messages flex h-[calc(100dvh-4rem)] md:h-dvh bg-background overflow-hidden">
+    <div className={cn("ig-messages flex bg-background overflow-hidden", activeConvId ? "h-[100dvh] md:h-dvh" : "h-[calc(100dvh-4rem)] md:h-dvh")}>
 
       {/* ── Sidebar ─────────────────────────────────────────────────── */}
       <div className={cn(
@@ -1022,9 +1071,9 @@ export default function Messages() {
                 )}
               >
                 {label}
-                {value === "unread" && (allConversations as any[] ?? []).filter((c: any) => c.unreadCount > 0).length > 0 && (
+                {value === "unread" && safeAllConversations.filter((c: any) => c.unreadCount > 0).length > 0 && (
                   <span className="ml-1 tabular-nums">
-                    {(allConversations as any[] ?? []).filter((c: any) => c.unreadCount > 0).length}
+                    {safeAllConversations.filter((c: any) => c.unreadCount > 0).length}
                   </span>
                 )}
               </button>
@@ -1178,15 +1227,18 @@ export default function Messages() {
             <Button onClick={() => setNewConvOpen(true)} size="sm" className="rounded-full">Send message</Button>
           </div>
         ) : (
-          <div className="flex flex-1 overflow-hidden relative min-w-0">
+          <div className="flex flex-1 overflow-hidden relative min-w-0 h-full">
             {/* Main chat column */}
             <div className={cn(
-              "flex flex-col flex-1 overflow-hidden transition-all min-w-0",
+              "flex flex-col flex-1 overflow-hidden transition-all min-w-0 h-full",
               showInfo || showChatTools ? "hidden lg:flex" : "flex"
             )}>
               {/* Chat header */}
-              <div className="px-3 py-2.5 border-b border-border flex items-center gap-2 bg-card shrink-0">
-                <Button variant="ghost" size="icon" className="md:hidden rounded-full w-9 h-9 shrink-0" onClick={() => setActiveConvId(null)}>
+              <div
+                className="px-3 py-2.5 border-b border-border flex items-center gap-2 bg-card shrink-0"
+                style={{ paddingTop: 'max(0.625rem, env(safe-area-inset-top))' }}
+              >
+                <Button variant="ghost" size="icon" className="md:hidden rounded-full w-9 h-9 shrink-0" onClick={handleBackToList}>
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
 
@@ -1808,7 +1860,7 @@ export default function Messages() {
     {/* Forward modal */}
     {forwardingMsg && (
       <ForwardModal
-        conversations={(allConversations as any[] ?? []).filter((c: any) => c.id !== activeConvId)}
+        conversations={safeAllConversations.filter((c: any) => c.id !== activeConvId)}
         onForward={handleForward}
         onClose={() => setForwardingMsg(null)}
       />
@@ -1850,16 +1902,6 @@ export default function Messages() {
         } : undefined}
       />
     )}
-    {/* WebRTC Voice & Video Call Overlay */}
-    <CallOverlay
-      callState={callState}
-      onClose={() => setCallState(null)}
-      myUserId={user?.id ?? ""}
-      myUser={user}
-      onStatusChange={(status) => {
-        setCallState((prev) => (prev ? { ...prev, status } : null));
-      }}
-    />
 
     {/* Spotify Music Picker */}
     <MusicPickerModal

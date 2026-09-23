@@ -49,6 +49,8 @@ interface CallOverlayProps {
     avatarUrl?: string;
   } | null;
   onStatusChange?: (status: CallState["status"]) => void;
+  isMinimized?: boolean;
+  onMinimizedChange?: (minimized: boolean) => void;
 }
 
 export function CallOverlay({
@@ -57,13 +59,21 @@ export function CallOverlay({
   myUserId,
   myUser,
   onStatusChange,
+  isMinimized: controlledMinimized,
+  onMinimizedChange,
 }: CallOverlayProps) {
   // Call controls state
   const [muted, setMuted] = useState(false);
   const [cameraOff, setCameraOff] = useState(false);
   const [isSpeakerOn, setIsSpeakerOn] = useState(true);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [localMinimized, setLocalMinimized] = useState(false);
+  const isMinimized = controlledMinimized !== undefined ? controlledMinimized : localMinimized;
+  const setIsMinimized = useCallback((val: boolean | ((prev: boolean) => boolean)) => {
+    const nextVal = typeof val === "function" ? val(isMinimized) : val;
+    setLocalMinimized(nextVal);
+    onMinimizedChange?.(nextVal);
+  }, [isMinimized, onMinimizedChange]);
   const [duration, setDuration] = useState(0);
   const [connectionState, setConnectionState] = useState<string>("connecting");
   const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
@@ -751,14 +761,66 @@ export function CallOverlay({
     );
   }
 
+  // ── Incoming Call Alert (Floating top banner, does not block underlying mobile page or nav) ──
+  if (callState.isIncoming && callPhase === "ringing") {
+    return (
+      <div className="fixed top-3 inset-x-3 sm:top-5 sm:inset-x-auto sm:right-6 sm:w-[400px] z-50 animate-in slide-in-from-top-4 duration-300">
+        <audio ref={remoteAudioRef} autoPlay />
+        <div className="bg-neutral-950/95 border border-primary/40 backdrop-blur-xl rounded-2xl shadow-2xl p-4 text-white flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              <Avatar className="w-12 h-12 border-2 border-primary">
+                <AvatarImage src={target?.avatarUrl} />
+                <AvatarFallback className="font-bold text-base bg-secondary text-secondary-foreground">
+                  {target?.username?.[0]?.toUpperCase() || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-neutral-950 animate-pulse" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold truncate">
+                {target?.fullName || target?.username}
+              </p>
+              <p className="text-xs text-emerald-400 font-medium flex items-center gap-1.5 mt-0.5">
+                <Radio className="w-3.5 h-3.5 animate-pulse" />
+                Incoming {isVideo ? "Video" : "Voice"} Call…
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between gap-2.5 pt-1 border-t border-neutral-800/80">
+            <Button
+              variant="destructive"
+              className="flex-1 rounded-xl bg-red-600 hover:bg-red-700 h-9 gap-1.5 font-semibold text-xs"
+              onClick={() => handleEndCall("declined")}
+            >
+              <PhoneOff className="w-4 h-4" />
+              Decline
+            </Button>
+            <Button
+              className="flex-1 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white h-9 gap-1.5 font-semibold text-xs shadow-lg shadow-emerald-900/30 animate-pulse"
+              onClick={handleAcceptCall}
+            >
+              {isVideo ? <Video className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
+              Accept
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-lg p-3 sm:p-4 animate-in fade-in duration-300">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-950 sm:bg-black/85 sm:backdrop-blur-lg p-0 sm:p-4 animate-in fade-in duration-300">
       {/* Remote audio output stream */}
       <audio ref={remoteAudioRef} autoPlay />
 
-      <div className="relative w-full max-w-lg h-[640px] max-h-[92vh] overflow-hidden rounded-3xl bg-neutral-950 border border-neutral-800 text-white shadow-2xl flex flex-col justify-between">
+      <div className="relative w-full h-full sm:max-w-lg sm:h-[640px] sm:max-h-[92vh] overflow-hidden sm:rounded-3xl bg-neutral-950 sm:border sm:border-neutral-800 text-white shadow-2xl flex flex-col justify-between">
         {/* Top Header Bar */}
-        <div className="absolute top-0 inset-x-0 z-20 p-4 flex items-center justify-between bg-gradient-to-b from-black/80 via-black/40 to-transparent">
+        <div
+          className="absolute top-0 inset-x-0 z-20 px-4 py-3 sm:py-4 flex items-center justify-between bg-gradient-to-b from-black/90 via-black/40 to-transparent"
+          style={{ paddingTop: 'max(0.75rem, env(safe-area-inset-top))' }}
+        >
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/10 backdrop-blur-md text-[11px] font-medium border border-white/10">
               <ShieldCheck className="w-3 h-3 text-emerald-400" />
@@ -913,7 +975,10 @@ export function CallOverlay({
 
         {/* ── Controls Bottom Bar ─────────────────────────────────────────── */}
         {callState.isIncoming && callPhase === "ringing" ? (
-          <div className="p-6 bg-neutral-950/90 border-t border-neutral-800/80 backdrop-blur-md flex items-center justify-around z-20">
+          <div
+            className="p-6 bg-neutral-950/90 border-t border-neutral-800/80 backdrop-blur-md flex items-center justify-around z-20"
+            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+          >
             <div className="flex flex-col items-center gap-2">
               <Button
                 variant="destructive"
@@ -937,7 +1002,10 @@ export function CallOverlay({
             </div>
           </div>
         ) : (
-          <div className="p-5 sm:p-6 bg-neutral-950/95 border-t border-neutral-800/80 backdrop-blur-md flex items-center justify-around gap-2 sm:gap-3 z-20">
+          <div
+            className="p-5 sm:p-6 bg-neutral-950/95 border-t border-neutral-800/80 backdrop-blur-md flex items-center justify-around gap-2 sm:gap-3 z-20"
+            style={{ paddingBottom: 'max(1.25rem, env(safe-area-inset-bottom))' }}
+          >
             {/* Mic Toggle */}
             <Button
               variant="secondary"

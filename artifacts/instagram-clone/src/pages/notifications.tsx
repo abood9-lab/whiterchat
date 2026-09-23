@@ -72,7 +72,7 @@ export default function Notifications() {
   } = useInfiniteQuery({
     queryKey: ["/api/notifications/infinite"],
     queryFn: async ({ pageParam = 1 }) => {
-      const token = localStorage.getItem("whiterchat_token");
+      const token = localStorage.getItem("pixlr_token");
       const res = await fetch(apiUrl(`/api/notifications?page=${pageParam}&limit=20`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

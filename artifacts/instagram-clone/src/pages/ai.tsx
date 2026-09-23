@@ -131,7 +131,7 @@ const MODEL_META: Record<
 
 const TOOLS = [
   { id: "chat", label: "AI Chat", icon: Bot, hint: "Multi-modal streaming assistant" },
-  { id: "caption", label: "Post Caption", icon: Sparkles, hint: "WhiterChat post captions & tags" },
+  { id: "caption", label: "Post Caption", icon: Sparkles, hint: "Instagram post captions & tags" },
   { id: "reels", label: "Reels Direct", icon: Film, hint: "Reels titles, descriptions & audio" },
   { id: "notes", label: "Notes AI", icon: MessageCircle, hint: "Catchy status notes & emojis" },
   { id: "hashtags", label: "Hashtags", icon: Hash, hint: "Trending hashtag generator" },
@@ -534,7 +534,7 @@ function ChatPanel({
             <div className="grid grid-cols-2 gap-2.5 w-full pt-2">
               {[
                 { title: "📸 Analyze Screenshot", prompt: "Analyze this UI screenshot and give improvement suggestions." },
-                { title: "✨ WhiterChat Caption", prompt: "Write an engaging, high-converting caption for my new post." },
+                { title: "✨ Instagram Caption", prompt: "Write an engaging, high-converting caption for my new post." },
                 { title: "💻 Debug & Fix Code", prompt: "Explain how to fix memory leaks and improve React rendering." },
                 { title: "🌐 Translate Content", prompt: "Translate my bio and recent post into Arabic and French." },
               ].map((item, idx) => (

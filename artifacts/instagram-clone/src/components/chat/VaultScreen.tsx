@@ -301,56 +301,60 @@ export function VaultScreen({ onClose, onOpenConversation, addConversationId, ad
               </div>
             ) : (
               <div className="flex-1 overflow-y-auto">
-                {conversations.map(conv => (
-                  <div
-                    key={conv.conversationId}
-                    className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors group relative cursor-pointer"
-                    onClick={() => handleSelectConv(conv)}
-                  >
-                    <div className="relative shrink-0">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={conv.otherUser.avatarUrl || undefined} />
-                        <AvatarFallback className="text-base font-semibold">
-                          {conv.otherUser.username[0].toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center border-2 border-background">
-                        <Lock className="w-2.5 h-2.5 text-primary-foreground" />
-                      </div>
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className={cn("text-sm truncate", conv.unreadCount > 0 ? "font-bold" : "font-semibold")}>
-                          {conv.otherUser.fullName || conv.otherUser.username}
-                        </span>
-                        <span className="text-[11px] text-muted-foreground ml-1 shrink-0">
-                          {formatTime(conv.lastMessageAt)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-muted-foreground truncate">
-                        {conv.lastMessage ?? "Start a conversation"}
-                      </p>
-                    </div>
-
-                    {conv.unreadCount > 0 && (
-                      <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center shrink-0">
-                        <span className="text-[9px] text-primary-foreground font-bold">
-                          {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
-                        </span>
-                      </div>
-                    )}
-
-                    {/* Remove from vault on hover */}
-                    <button
-                      onClick={e => { e.stopPropagation(); handleRemoveFromVault(conv.conversationId); }}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 hidden group-hover:flex p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
-                      title="Remove from vault"
+                {conversations.map(conv => {
+                  const fallbackChar = (conv.otherUser?.username?.[0] || "U").toUpperCase();
+                  const displayName = conv.otherUser?.fullName || conv.otherUser?.username || "Conversation";
+                  return (
+                    <div
+                      key={conv.conversationId}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-secondary/60 transition-colors group relative cursor-pointer"
+                      onClick={() => handleSelectConv(conv)}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                ))}
+                      <div className="relative shrink-0">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={conv.otherUser?.avatarUrl || undefined} />
+                          <AvatarFallback className="text-base font-semibold">
+                            {fallbackChar}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center border-2 border-background">
+                          <Lock className="w-2.5 h-2.5 text-primary-foreground" />
+                        </div>
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <span className={cn("text-sm truncate", conv.unreadCount > 0 ? "font-bold" : "font-semibold")}>
+                            {displayName}
+                          </span>
+                          <span className="text-[11px] text-muted-foreground ml-1 shrink-0">
+                            {formatTime(conv.lastMessageAt)}
+                          </span>
+                        </div>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {conv.lastMessage ?? "Start a conversation"}
+                        </p>
+                      </div>
+
+                      {conv.unreadCount > 0 && (
+                        <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center shrink-0">
+                          <span className="text-[9px] text-primary-foreground font-bold">
+                            {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Remove from vault on hover */}
+                      <button
+                        onClick={e => { e.stopPropagation(); handleRemoveFromVault(conv.conversationId); }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 hidden group-hover:flex p-1.5 rounded-full hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+                        title="Remove from vault"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </motion.div>
@@ -366,9 +370,9 @@ export function VaultScreen({ onClose, onOpenConversation, addConversationId, ad
             <div className="flex flex-col items-center gap-3">
               <div className="relative">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src={selectedConv.otherUser.avatarUrl || undefined} />
+                  <AvatarImage src={selectedConv.otherUser?.avatarUrl || undefined} />
                   <AvatarFallback className="text-2xl font-semibold">
-                    {selectedConv.otherUser.username[0].toUpperCase()}
+                    {(selectedConv.otherUser?.username?.[0] || "U").toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="absolute -bottom-1 -right-1 w-7 h-7 bg-primary rounded-full flex items-center justify-center border-2 border-background">
@@ -376,8 +380,8 @@ export function VaultScreen({ onClose, onOpenConversation, addConversationId, ad
                 </div>
               </div>
               <div className="text-center">
-                <p className="font-semibold">{selectedConv.otherUser.fullName || selectedConv.otherUser.username}</p>
-                <p className="text-sm text-muted-foreground">@{selectedConv.otherUser.username}</p>
+                <p className="font-semibold">{selectedConv.otherUser?.fullName || selectedConv.otherUser?.username || "Conversation"}</p>
+                <p className="text-sm text-muted-foreground">@{selectedConv.otherUser?.username || "user"}</p>
               </div>
             </div>
             <PinInput

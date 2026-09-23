@@ -94,7 +94,7 @@ export function ThemeProvider({
       const saved = localStorage.getItem(ACCENT_STORAGE_KEY)
       if (saved && saved !== DEFAULT_ACCENT_HEX) applyAccentColor(saved)
       // Re-read uiHue from state via closure — it's stable here
-      const extrasRaw = localStorage.getItem("whiterchat-theme-extras")
+      const extrasRaw = localStorage.getItem("pixlr-theme-extras")
       if (extrasRaw) {
         try {
           const p = JSON.parse(extrasRaw)

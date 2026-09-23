@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { X, Search, Check, Send } from "lucide-react";
+import { X, Search, Check, Send, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,10 @@ import { cn } from "@/lib/utils";
 
 interface ConvItem {
   id: string;
-  otherUser: { id: string; username: string; fullName: string; avatarUrl?: string | null };
+  isGroup?: boolean;
+  groupName?: string;
+  groupAvatar?: string | null;
+  otherUser?: { id: string; username?: string; fullName?: string; avatarUrl?: string | null } | null;
 }
 
 interface Props {
@@ -21,15 +24,23 @@ export function ForwardModal({ conversations, onForward, onClose }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const filtered = useMemo(
-    () =>
-      conversations.filter(
-        c =>
-          c.otherUser.username.toLowerCase().includes(search.toLowerCase()) ||
-          c.otherUser.fullName.toLowerCase().includes(search.toLowerCase())
-      ),
-    [conversations, search]
+  const safeConversations = useMemo(
+    () => (Array.isArray(conversations) ? conversations.filter(Boolean) : []),
+    [conversations]
   );
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return safeConversations.filter(c => {
+      if (!c) return false;
+      const title = c.isGroup
+        ? (c.groupName || "Group Chat")
+        : (c.otherUser?.fullName || c.otherUser?.username || "Chat");
+      const username = c.otherUser?.username || "";
+      if (!q) return true;
+      return title.toLowerCase().includes(q) || username.toLowerCase().includes(q);
+    });
+  }, [safeConversations, search]);
 
   const handleSend = async () => {
     if (!selected) return;
@@ -37,6 +48,8 @@ export function ForwardModal({ conversations, onForward, onClose }: Props) {
     try {
       await onForward(selected);
       onClose();
+    } catch {
+      // silently catch or let parent handle
     } finally {
       setLoading(false);
     }
@@ -82,36 +95,52 @@ export function ForwardModal({ conversations, onForward, onClose }: Props) {
           {filtered.length === 0 && (
             <div className="py-10 text-center text-sm text-muted-foreground">No conversations found</div>
           )}
-          {filtered.map(conv => (
-            <button
-              key={conv.id}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3 w-full hover:bg-secondary/60 transition-colors text-left",
-                selected === conv.id && "bg-secondary"
-              )}
-              onClick={() => setSelected(prev => (prev === conv.id ? null : conv.id))}
-            >
-              <div className="relative">
-                <Avatar className="h-11 w-11">
-                  <AvatarImage src={conv.otherUser.avatarUrl || undefined} />
-                  <AvatarFallback className="font-semibold">
-                    {conv.otherUser.username[0]?.toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                {selected === conv.id && (
-                  <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center border-2 border-card">
-                    <Check className="w-2.5 h-2.5 text-primary-foreground" />
-                  </span>
+          {filtered.map(conv => {
+            const isGroup = Boolean(conv.isGroup);
+            const displayName = isGroup
+              ? (conv.groupName || "Group Chat")
+              : (conv.otherUser?.fullName || conv.otherUser?.username || "Unknown User");
+            const displaySub = isGroup
+              ? "Group"
+              : conv.otherUser?.username ? `@${conv.otherUser.username}` : "";
+            const avatarSrc = isGroup
+              ? (conv.groupAvatar || undefined)
+              : (conv.otherUser?.avatarUrl || undefined);
+            const fallbackChar = (displayName[0] || "?").toUpperCase();
+
+            return (
+              <button
+                key={conv.id}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 w-full hover:bg-secondary/60 transition-colors text-left",
+                  selected === conv.id && "bg-secondary"
                 )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">
-                  {conv.otherUser.fullName || conv.otherUser.username}
+                onClick={() => setSelected(prev => (prev === conv.id ? null : conv.id))}
+              >
+                <div className="relative">
+                  <Avatar className="h-11 w-11">
+                    <AvatarImage src={avatarSrc} />
+                    <AvatarFallback className="font-semibold">
+                      {isGroup ? <Users className="w-5 h-5 text-muted-foreground" /> : fallbackChar}
+                    </AvatarFallback>
+                  </Avatar>
+                  {selected === conv.id && (
+                    <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-primary rounded-full flex items-center justify-center border-2 border-card">
+                      <Check className="w-2.5 h-2.5 text-primary-foreground" />
+                    </span>
+                  )}
                 </div>
-                <div className="text-xs text-muted-foreground truncate">@{conv.otherUser.username}</div>
-              </div>
-            </button>
-          ))}
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium truncate">
+                    {displayName}
+                  </div>
+                  {displaySub && (
+                    <div className="text-xs text-muted-foreground truncate">{displaySub}</div>
+                  )}
+                </div>
+              </button>
+            );
+          })}
         </div>
 
         {/* Send button */}

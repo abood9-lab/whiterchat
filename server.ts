@@ -146,7 +146,7 @@ async function startServer() {
       const callPayload = {
         conversationId: data.conversationId,
         callerId: userId,
-        caller: data.caller,
+        caller: data.caller ? { ...data.caller, id: userId } : { id: userId, username: "User" },
         callType: data.callType,
         offer: data.offer,
       };

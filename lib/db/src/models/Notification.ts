@@ -4,7 +4,30 @@ export interface INotification extends Document {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   actorId: mongoose.Types.ObjectId;
-  type: "like" | "post_reaction" | "comment" | "comment_reply" | "comment_reaction" | "mention" | "follow" | "message" | "note_reply" | "share" | "feedback" | "story_reply" | "story_reaction";
+  type:
+    | "like"
+    | "post_reaction"
+    | "comment"
+    | "comment_reply"
+    | "comment_reaction"
+    | "mention"
+    | "follow"
+    | "message"
+    | "note_reply"
+    | "share"
+    | "feedback"
+    | "story_reply"
+    | "story_reaction"
+    | "verification_payment_instructions"
+    | "verification_approved"
+    | "verification_rejected"
+    | "verification_expired"
+    | "group_join_request"
+    | "group_join_approved"
+    | "group_join_rejected"
+    | "group_role_changed"
+    | "group_moderation"
+    | "system";
   postId?: mongoose.Types.ObjectId;
   commentId?: mongoose.Types.ObjectId;
   commentText?: string;
@@ -16,6 +39,7 @@ export interface INotification extends Document {
   feedbackId?: mongoose.Types.ObjectId;
   messageText?: string;
   conversationId?: mongoose.Types.ObjectId;
+  extraData?: Record<string, any>;
   isRead: boolean;
   createdAt: Date;
 }
@@ -26,7 +50,31 @@ const NotificationSchema = new Schema<INotification>(
     actorId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     type: {
       type: String,
-      enum: ["like", "post_reaction", "comment", "comment_reply", "comment_reaction", "mention", "follow", "message", "note_reply", "share", "feedback", "story_reply", "story_reaction"],
+      enum: [
+        "like",
+        "post_reaction",
+        "comment",
+        "comment_reply",
+        "comment_reaction",
+        "mention",
+        "follow",
+        "message",
+        "note_reply",
+        "share",
+        "feedback",
+        "story_reply",
+        "story_reaction",
+        "verification_payment_instructions",
+        "verification_approved",
+        "verification_rejected",
+        "verification_expired",
+        "group_join_request",
+        "group_join_approved",
+        "group_join_rejected",
+        "group_role_changed",
+        "group_moderation",
+        "system",
+      ],
       required: true,
     },
     postId: { type: Schema.Types.ObjectId, ref: "Post", default: null },
@@ -40,6 +88,7 @@ const NotificationSchema = new Schema<INotification>(
     feedbackId: { type: Schema.Types.ObjectId, ref: "Feedback", default: null },
     messageText: { type: String, default: null },
     conversationId: { type: Schema.Types.ObjectId, ref: "Conversation", default: null },
+    extraData: { type: Schema.Types.Mixed, default: {} },
     isRead: { type: Boolean, default: false },
   },
   { timestamps: { createdAt: true, updatedAt: false } }

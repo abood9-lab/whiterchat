@@ -5,6 +5,7 @@ import { uploadBase64 } from "../lib/cloudinary";
 import { notifyUserPush } from "../lib/push";
 import { buildUserSummary } from "./users";
 import { FeedRankingService } from "../services/feedRanking";
+import { planService } from "../services/planService";
 import mongoose from "mongoose";
 
 const router: IRouter = Router();
@@ -176,6 +177,23 @@ router.post("/posts", requireAuth, async (req: AuthRequest, res): Promise<void> 
     res.status(400).json({ error: "mediaUrl is required" });
     return;
   }
+
+  // Validate carousel limits according to subscription plan
+  if (Array.isArray(additionalMediaUrls) && additionalMediaUrls.length > 0) {
+    const user = await User.findById(req.userId);
+    const maxCarousel = await planService.getPlanLimit(user, "maxCarouselMedia", 10);
+    const totalItems = 1 + additionalMediaUrls.length;
+    if (totalItems > maxCarousel) {
+      res.status(400).json({
+        error: `Your plan allows up to ${maxCarousel} items in a carousel. You uploaded ${totalItems}. Upgrade to Pro, VIP, or Business for larger carousels.`,
+        code: "LIMIT_REACHED",
+        maxAllowed: maxCarousel,
+        upgradeRequired: true,
+      });
+      return;
+    }
+  }
+
   const post = await Post.create({
     authorId: req.userId,
     caption,

@@ -69,6 +69,7 @@ import { PostReactionPicker } from "@/components/feed/PostReactionPicker";
 import { ReactionsListModal } from "@/components/feed/ReactionsListModal";
 import { RichCommentComposer, CommentSubmitData } from "@/components/feed/RichCommentComposer";
 import { CommentItem, CommentData } from "@/components/feed/CommentItem";
+import { apiUrl } from "@/lib/api-url";
 
 export default function PostDetail() {
   const [, params] = useRoute("/post/:id");
@@ -136,7 +137,7 @@ export default function PostDetail() {
     if (!postId) return;
     setCommentsLoading(true);
     try {
-      const res = await fetch(`/api/posts/${postId}/comments`, {
+      const res = await fetch(apiUrl(`/api/posts/${postId}/comments`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
@@ -240,7 +241,7 @@ export default function PostDetail() {
     setLikesCount(newLikesCount);
 
     try {
-      const res = await fetch(`/api/posts/${postId}/react`, {
+      const res = await fetch(apiUrl(`/api/posts/${postId}/react`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -281,7 +282,7 @@ export default function PostDetail() {
   // Handle Submit Comment / Reply
   const handleCommentSubmit = async (data: CommentSubmitData) => {
     try {
-      const res = await fetch(`/api/posts/${postId}/comments`, {
+      const res = await fetch(apiUrl(`/api/posts/${postId}/comments`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -318,7 +319,7 @@ export default function PostDetail() {
   // React to Comment
   const handleCommentReact = async (commentId: string, emoji: string) => {
     try {
-      const res = await fetch(`/api/comments/${commentId}/react`, {
+      const res = await fetch(apiUrl(`/api/comments/${commentId}/react`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -352,7 +353,7 @@ export default function PostDetail() {
 
   // Edit Comment
   const handleCommentEdit = async (commentId: string, newText: string) => {
-    const res = await fetch(`/api/comments/${commentId}`, {
+    const res = await fetch(apiUrl(`/api/comments/${commentId}`), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -379,7 +380,7 @@ export default function PostDetail() {
   // Delete Comment
   const handleCommentDelete = async (commentId: string) => {
     try {
-      const res = await fetch(`/api/comments/${commentId}`, {
+      const res = await fetch(apiUrl(`/api/comments/${commentId}`), {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

@@ -82,10 +82,13 @@ export function CloseFriendsModal({ onClose }: CloseFriendsModalProps) {
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 60, opacity: 0 }}
         transition={{ type: "spring", damping: 25 }}
-        className="bg-background border border-border rounded-t-3xl sm:rounded-3xl w-full max-w-md max-h-[85vh] flex flex-col overflow-hidden shadow-2xl"
+        className="bg-background border-t sm:border border-border rounded-t-[28px] sm:rounded-3xl w-full max-w-none sm:max-w-md max-h-[88dvh] sm:max-h-[85vh] flex flex-col overflow-hidden shadow-2xl pb-[max(1rem,calc(1rem+env(safe-area-inset-bottom)))] sm:pb-0"
       >
+        {/* Mobile handle */}
+        <div className="mx-auto mt-2.5 -mb-1 h-1.5 w-12 rounded-full bg-muted-foreground/30 sm:hidden shrink-0 pointer-events-none" />
+
         {/* Header */}
-        <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-5 pt-4 pb-4 border-b border-border shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-green-500/15 flex items-center justify-center">
               <Star size={18} className="text-green-500 fill-green-500" />
@@ -202,10 +205,10 @@ function AddFromFollowing({
           className="w-full pl-8 pr-3 py-2 text-sm bg-muted rounded-xl border border-border focus:outline-none focus:ring-1 focus:ring-green-500 transition"
         />
       </div>
-      {query.length >= 1 && (results as any[]).length > 0 && (
+      {query.length >= 1 && (Array.isArray(results) ? results : []).length > 0 && (
         <div className="space-y-1 max-h-40 overflow-y-auto">
-          {(results as any[])
-            .filter((u: any) => u.isFollowing || !closeFriendIds.has(String(u.id)))
+          {(Array.isArray(results) ? results : [])
+            .filter((u: any) => Boolean(u && u.id && (u.isFollowing || !closeFriendIds.has(String(u.id)))))
             .map((user: any) => (
               <div key={user.id} className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-muted/60 transition-colors">
                 <Avatar className="h-8 w-8 shrink-0">

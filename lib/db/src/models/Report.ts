@@ -3,7 +3,7 @@ import mongoose, { Schema, type Document } from "mongoose";
 export interface IReport extends Document {
   _id: mongoose.Types.ObjectId;
   reporterId: mongoose.Types.ObjectId;
-  targetType: "user" | "post" | "message" | "comment";
+  targetType: "user" | "post" | "message" | "comment" | "group";
   targetUserId?: mongoose.Types.ObjectId;
   targetPostId?: mongoose.Types.ObjectId;
   targetMessageId?: mongoose.Types.ObjectId;
@@ -20,7 +20,7 @@ export interface IReport extends Document {
 const ReportSchema = new Schema<IReport>(
   {
     reporterId: { type: Schema.Types.ObjectId, ref: "User", required: true },
-    targetType: { type: String, enum: ["user", "post", "message", "comment"], required: true },
+    targetType: { type: String, enum: ["user", "post", "message", "comment", "group"], required: true },
     targetUserId: { type: Schema.Types.ObjectId, ref: "User", default: null },
     targetPostId: { type: Schema.Types.ObjectId, ref: "Post", default: null },
     targetMessageId: { type: Schema.Types.ObjectId, ref: "Message", default: null },

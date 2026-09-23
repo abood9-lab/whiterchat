@@ -178,7 +178,7 @@ export default function Profile() {
     if (!username) return;
     const fetchUserNote = async () => {
       try {
-        const token = localStorage.getItem("whiterchat_token") ?? "";
+        const token = localStorage.getItem("pixlr_token") ?? "";
         const resp = await fetch(
           apiUrl(`/api/notes/user/${encodeURIComponent(username)}`),
           { headers: { Authorization: `Bearer ${token}` } }
@@ -200,7 +200,7 @@ export default function Profile() {
   useEffect(() => {
     if (!username) return;
     const fetchTabData = async () => {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const headers = { Authorization: `Bearer ${token}` };
 
       try {
@@ -251,7 +251,7 @@ export default function Profile() {
     audience?: "followers" | "close_friends";
     theme?: NoteTheme;
   }) => {
-    const token = localStorage.getItem("whiterchat_token") ?? "";
+    const token = localStorage.getItem("pixlr_token") ?? "";
     const resp = await fetch(apiUrl("/api/notes"), {
       method: "POST",
       headers: {
@@ -269,7 +269,7 @@ export default function Profile() {
 
   const handleReplyNote = async (text: string) => {
     if (!userNote) return;
-    const token = localStorage.getItem("whiterchat_token") ?? "";
+    const token = localStorage.getItem("pixlr_token") ?? "";
     const resp = await fetch(apiUrl(`/api/notes/${userNote.id}/reply`), {
       method: "POST",
       headers: {
@@ -292,7 +292,7 @@ export default function Profile() {
   };
 
   const handleDeleteNote = async () => {
-    const token = localStorage.getItem("whiterchat_token") ?? "";
+    const token = localStorage.getItem("pixlr_token") ?? "";
     await fetch(apiUrl("/api/notes/me"), {
       method: "DELETE",
       headers: { Authorization: `Bearer ${token}` },
@@ -377,7 +377,7 @@ export default function Profile() {
     reader.onloadend = async () => {
       setIsUploadingCover(true);
       try {
-        const token = localStorage.getItem("whiterchat_token") ?? "";
+        const token = localStorage.getItem("pixlr_token") ?? "";
         const res = await fetch(apiUrl("/api/users/me/cover"), {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -440,7 +440,7 @@ export default function Profile() {
             "alternateName": profile.username,
             "description": profile.bio,
             "image": profile.avatarUrl,
-            "url": `https://whiterchat.app/profile/${profile.username}`,
+            "url": `https://pixlr.app/profile/${profile.username}`,
             "interactionStatistic": [
               {
                 "@type": "InteractionCounter",
@@ -1099,6 +1099,14 @@ export default function Profile() {
           onClose={() => setNoteDetailOpen(false)}
           onReply={handleReplyNote}
           onDelete={isMe ? handleDeleteNote : undefined}
+          onNewNote={
+            isMe
+              ? () => {
+                  setNoteDetailOpen(false);
+                  setNoteComposerOpen(true);
+                }
+              : undefined
+          }
         />
       )}
 

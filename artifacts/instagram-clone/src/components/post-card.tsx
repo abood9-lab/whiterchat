@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Link, useLocation } from "wouter";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -72,6 +72,7 @@ import { RichCommentComposer, CommentSubmitData } from "@/components/feed/RichCo
 import { CommentItem, CommentData } from "@/components/feed/CommentItem";
 import { CommentsSidePanel } from "@/components/feed/CommentsSidePanel";
 import { VoicePlayer } from "@/components/chat/VoicePlayer";
+import { apiUrl } from "@/lib/api-url";
 
 function MediaCarousel({
   mediaUrls,
@@ -233,12 +234,24 @@ export function PostCard({ post }: { post: Post }) {
   const { data: followingData } = useGetFollowing(user?.username ?? "", {
     query: { enabled: !!user?.username && shareOpen } as any,
   });
-  const followingList: UserSummary[] = (followingData as any) ?? [];
-  const filteredFollowing = followingList.filter(
-    (u) =>
-      u.username.toLowerCase().includes(shareSearch.toLowerCase()) ||
-      (u.fullName ?? "").toLowerCase().includes(shareSearch.toLowerCase())
-  );
+  const followingList: UserSummary[] = useMemo(() => {
+    if (Array.isArray(followingData)) return (followingData as UserSummary[]).filter(Boolean);
+    if (followingData && Array.isArray((followingData as any).users)) {
+      return ((followingData as any).users as UserSummary[]).filter(Boolean);
+    }
+    return [];
+  }, [followingData]);
+
+  const filteredFollowing = useMemo(() => {
+    const q = shareSearch.trim().toLowerCase();
+    return followingList.filter((u) => {
+      if (!u) return false;
+      const un = (u.username || "").toLowerCase();
+      const fn = (u.fullName || "").toLowerCase();
+      if (!q) return true;
+      return un.includes(q) || fn.includes(q);
+    });
+  }, [followingList, shareSearch]);
 
   const isOwner = post.author?.id === user?.id;
   const captionLong = (post.caption?.length ?? 0) > 100;
@@ -254,7 +267,7 @@ export function PostCard({ post }: { post: Post }) {
   const loadComments = async () => {
     setCommentsLoading(true);
     try {
-      const res = await fetch(`/api/posts/${post.id}/comments`, {
+      const res = await fetch(apiUrl(`/api/posts/${post.id}/comments`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (res.ok) {
@@ -291,7 +304,7 @@ export function PostCard({ post }: { post: Post }) {
     setLikesCount(newLikesCount);
 
     try {
-      const res = await fetch(`/api/posts/${post.id}/react`, {
+      const res = await fetch(apiUrl(`/api/posts/${post.id}/react`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -425,7 +438,7 @@ export function PostCard({ post }: { post: Post }) {
   // Submit Comment / Reply
   const handleCommentSubmit = async (data: CommentSubmitData) => {
     try {
-      const res = await fetch(`/api/posts/${post.id}/comments`, {
+      const res = await fetch(apiUrl(`/api/posts/${post.id}/comments`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -461,7 +474,7 @@ export function PostCard({ post }: { post: Post }) {
   // React to Comment
   const handleCommentReact = async (commentId: string, emoji: string) => {
     try {
-      const res = await fetch(`/api/comments/${commentId}/react`, {
+      const res = await fetch(apiUrl(`/api/comments/${commentId}/react`), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -495,7 +508,7 @@ export function PostCard({ post }: { post: Post }) {
 
   // Edit Comment
   const handleCommentEdit = async (commentId: string, newText: string) => {
-    const res = await fetch(`/api/comments/${commentId}`, {
+    const res = await fetch(apiUrl(`/api/comments/${commentId}`), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -522,7 +535,7 @@ export function PostCard({ post }: { post: Post }) {
   // Delete Comment
   const handleCommentDelete = async (commentId: string) => {
     try {
-      const res = await fetch(`/api/comments/${commentId}`, {
+      const res = await fetch(apiUrl(`/api/comments/${commentId}`), {
         method: "DELETE",
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });

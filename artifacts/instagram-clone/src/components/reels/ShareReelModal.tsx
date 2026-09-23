@@ -131,10 +131,13 @@ export function ShareReelModal({
     }
   };
 
-  const filteredUsers = users.filter((u) =>
-    u.username.toLowerCase().includes(search.toLowerCase()) ||
-    (u.fullName && u.fullName.toLowerCase().includes(search.toLowerCase()))
-  );
+  const filteredUsers = (Array.isArray(users) ? users : []).filter((u) => {
+    if (!u) return false;
+    const un = (u.username || "").toLowerCase();
+    const fn = (u.fullName || "").toLowerCase();
+    const q = search.trim().toLowerCase();
+    return !q || un.includes(q) || fn.includes(q);
+  });
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

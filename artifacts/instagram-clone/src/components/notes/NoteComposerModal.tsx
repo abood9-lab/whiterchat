@@ -29,6 +29,7 @@ import { cn } from "@/lib/utils";
 import { apiUrl } from "@/lib/api-url";
 import { NOTE_THEME_OPTIONS } from "@/lib/note-themes";
 import type { SocialNote, NoteLocation, NoteTheme, SpotifyTrackPayload } from "@/types/note";
+import { useNavigationState } from "@/lib/navigation-context";
 
 interface Props {
   existingNote?: SocialNote | null;
@@ -92,6 +93,16 @@ export function NoteComposerModal({
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+
+  const { setIsNoteComposerOpen } = useNavigationState();
+
+  // Sync navigation context: hide mobile bottom nav while composer is mounted/open
+  useEffect(() => {
+    setIsNoteComposerOpen(true);
+    return () => {
+      setIsNoteComposerOpen(false);
+    };
+  }, [setIsNoteComposerOpen]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -327,10 +338,13 @@ export function NoteComposerModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-h-[92vh] overflow-y-auto rounded-t-[28px] bg-card border border-border shadow-2xl sm:max-w-[420px] sm:rounded-[28px] flex flex-col"
+        className="w-full max-h-[92vh] overflow-y-auto rounded-t-[28px] bg-card border-t sm:border border-border shadow-2xl sm:max-w-[420px] sm:rounded-[28px] flex flex-col"
         onClick={e => e.stopPropagation()}
         style={{ paddingBottom: "max(16px, env(safe-area-inset-bottom))" }}
       >
+        {/* Mobile handle */}
+        <div className="mx-auto mt-2.5 -mb-1 h-1.5 w-12 rounded-full bg-muted-foreground/30 sm:hidden shrink-0 pointer-events-none" />
+
         {/* Hidden photo input */}
         <input
           ref={fileInputRef}

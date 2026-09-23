@@ -10,8 +10,10 @@ import { SplashScreen, hasShownSplashThisSession, markSplashShown } from "@/comp
 import NotFound from "@/pages/not-found";
 import { decodeTheme, applyThemeExtras } from "@/lib/theme-config";
 import { applyAccentColor, ACCENT_STORAGE_KEY } from "@/lib/accent-color";
+import { NavigationProvider } from "@/lib/navigation-context";
 
 import { GuestAuthProvider } from "@/components/GuestAuthModal";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 import Login from "@/pages/login";
 import Register from "@/pages/register";
@@ -52,6 +54,21 @@ import AccessibilityPage from "@/pages/institutional/accessibility";
 import PlatformRulesPage from "@/pages/institutional/platform-rules";
 import BusinessPage from "@/pages/institutional/business";
 import AdvertisingPage from "@/pages/institutional/advertising";
+
+// Production Admin Dashboard Pages
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import AdminUsers from "@/pages/admin/AdminUsers";
+import AdminReports from "@/pages/admin/AdminReports";
+import AdminContent from "@/pages/admin/AdminContent";
+import AdminComments from "@/pages/admin/AdminComments";
+import AdminStories from "@/pages/admin/AdminStories";
+import AdminFeedback from "@/pages/admin/AdminFeedback";
+import AdminSecurity from "@/pages/admin/AdminSecurity";
+import AdminAuditLogs from "@/pages/admin/AdminAuditLogs";
+import AdminSettings from "@/pages/admin/AdminSettings";
+import AdminVerification from "@/pages/admin/AdminVerification";
+import AdminGroups from "@/pages/admin/AdminGroups";
+import AdminPlans from "@/pages/admin/AdminPlans";
 
 function ThemeImporter() {
   const { setTheme, setAccentColor, setFontSize, setRadius, setDensity, setUiHue } = useTheme();
@@ -123,8 +140,10 @@ function Router() {
         {/* Member-Only Protected Routes */}
         <Route path="/create" component={() => <ProtectedRoute component={Create} />} />
         <Route path="/messages" component={() => <ProtectedRoute component={Messages} />} />
+        <Route path="/messages/:id" component={() => <ProtectedRoute component={Messages} />} />
         <Route path="/notifications" component={() => <ProtectedRoute component={Notifications} />} />
         <Route path="/settings" component={() => <ProtectedRoute component={Settings} />} />
+        <Route path="/plans" component={() => <ProtectedRoute component={Settings} />} />
         <Route path="/snap" component={() => <ProtectedRoute component={SnapPage} />} />
         <Route path="/ai" component={() => <ProtectedRoute component={AIPage} />} />
         
@@ -152,6 +171,22 @@ function Router() {
         <Route path="/rules" component={PlatformRulesPage} />
         <Route path="/business" component={BusinessPage} />
         <Route path="/advertising" component={AdvertisingPage} />
+
+        {/* Real Production Admin Dashboard Routes */}
+        <Route path="/admin" component={AdminDashboard} />
+        <Route path="/admin/users" component={AdminUsers} />
+        <Route path="/admin/groups" component={AdminGroups} />
+        <Route path="/admin/plans" component={AdminPlans} />
+        <Route path="/admin/verification" component={AdminVerification} />
+        <Route path="/admin/reports" component={AdminReports} />
+        <Route path="/admin/content" component={() => <AdminContent />} />
+        <Route path="/admin/reels" component={() => <AdminContent forcedType="reel" />} />
+        <Route path="/admin/comments" component={AdminComments} />
+        <Route path="/admin/stories" component={AdminStories} />
+        <Route path="/admin/feedback" component={AdminFeedback} />
+        <Route path="/admin/security" component={AdminSecurity} />
+        <Route path="/admin/audit-logs" component={AdminAuditLogs} />
+        <Route path="/admin/settings" component={AdminSettings} />
 
         <Route component={NotFound} />
       </Switch>
@@ -192,10 +227,14 @@ function AppWithGuestAuth() {
   const { user } = useAuth();
   return (
     <GuestAuthProvider isLoggedIn={Boolean(user)}>
-      <TooltipProvider>
-        <Router />
-        <Toaster />
-      </TooltipProvider>
+      <NavigationProvider>
+        <TooltipProvider>
+          <ErrorBoundary>
+            <Router />
+          </ErrorBoundary>
+          <Toaster />
+        </TooltipProvider>
+      </NavigationProvider>
     </GuestAuthProvider>
   );
 }

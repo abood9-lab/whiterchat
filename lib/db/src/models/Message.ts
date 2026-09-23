@@ -14,11 +14,19 @@ export interface IConversation extends Document {
   isGroup: boolean;
   groupName?: string;
   groupAvatarUrl?: string | null;
+  groupCoverUrl?: string | null;
   groupDescription?: string | null;
+  privacy?: "public" | "approval_required" | "private";
   memberIds: mongoose.Types.ObjectId[];
   adminIds: mongoose.Types.ObjectId[];
+  moderatorIds?: mongoose.Types.ObjectId[];
+  bannedUserIds?: mongoose.Types.ObjectId[];
   createdBy?: mongoose.Types.ObjectId;
   onlyAdminsCanSend: boolean;
+  isDisabled?: boolean;
+  disabledReason?: string;
+  disabledAt?: Date;
+  disabledBy?: mongoose.Types.ObjectId;
   // Shared
   isArchivedBy: mongoose.Types.ObjectId[];
   isMutedBy: mongoose.Types.ObjectId[];
@@ -145,11 +153,19 @@ const ConversationSchema = new Schema<IConversation>(
     isGroup: { type: Boolean, default: false },
     groupName: { type: String, default: null },
     groupAvatarUrl: { type: String, default: null },
+    groupCoverUrl: { type: String, default: null },
     groupDescription: { type: String, default: null },
+    privacy: { type: String, enum: ["public", "approval_required", "private"], default: "approval_required" },
     memberIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
     adminIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    moderatorIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
+    bannedUserIds: [{ type: Schema.Types.ObjectId, ref: "User" }],
     createdBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     onlyAdminsCanSend: { type: Boolean, default: false },
+    isDisabled: { type: Boolean, default: false },
+    disabledReason: { type: String, default: null },
+    disabledAt: { type: Date, default: null },
+    disabledBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
     isArchivedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
     isMutedBy: [{ type: Schema.Types.ObjectId, ref: "User" }],
     lastActivityAt: { type: Date, default: Date.now },

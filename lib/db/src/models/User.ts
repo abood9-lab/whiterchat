@@ -18,9 +18,41 @@ export interface IUser extends Document {
   interests: string[];
   profileCompleted: boolean;
   isVerified?: boolean;
-  role?: string; // 'user' | 'creator' | 'admin'
+  verificationBadge?: string;
+  verificationPlanId?: mongoose.Types.ObjectId;
+  verificationPlanName?: string;
+  verificationExpiresAt?: Date;
+  verificationStartedAt?: Date;
+  verificationStatus?: string;
+  // Subscription Plan fields (Free, Pro, VIP, Business)
+  subscriptionPlan?: "free" | "pro" | "vip" | "business";
+  subscriptionStatus?: "active" | "cancelled" | "expired" | "past_due";
+  subscriptionStartedAt?: Date;
+  subscriptionExpiresAt?: Date;
+  subscriptionCycle?: "monthly" | "yearly";
+  accountType?: "personal" | "creator" | "business";
+  planBadge?: string;
+  businessProfile?: {
+    businessName?: string;
+    category?: string;
+    contactEmail?: string;
+    contactPhone?: string;
+    address?: string;
+    website?: string;
+    supportHours?: string;
+    quickReplies?: Array<{ shortcut: string; message: string }>;
+  };
+  aiUsageToday?: {
+    date: string;
+    count: number;
+  };
+  role?: string; // 'user' | 'creator' | 'moderator' | 'admin' | 'superadmin' | 'support'
   isPrivate?: boolean;
   isDeactivated?: boolean;
+  isSuspended?: boolean;
+  suspensionReason?: string;
+  suspendedAt?: Date;
+  suspendedBy?: mongoose.Types.ObjectId;
   vaultPin?: string;
   followers: mongoose.Types.ObjectId[];
   following: mongoose.Types.ObjectId[];
@@ -132,7 +164,7 @@ const UserSchema = new Schema<IUser>(
     username: { type: String, required: true, unique: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     fullName: { type: String, required: true },
-    passwordHash: { type: String, required: true },
+    passwordHash: { type: String, required: true, select: false },
     bio: { type: String, default: null },
     avatarUrl: { type: String, default: null },
     coverUrl: { type: String, default: null },
@@ -145,10 +177,59 @@ const UserSchema = new Schema<IUser>(
     interests: [{ type: String }],
     profileCompleted: { type: Boolean, default: false },
     isVerified: { type: Boolean, default: false },
+    verificationBadge: { type: String, default: "blue_check" },
+    verificationPlanId: { type: Schema.Types.ObjectId, ref: "VerificationPlan", default: null },
+    verificationPlanName: { type: String, default: null },
+    verificationExpiresAt: { type: Date, default: null },
+    verificationStartedAt: { type: Date, default: null },
+    verificationStatus: { type: String, default: "none" },
+    // Subscription Plan
+    subscriptionPlan: {
+      type: String,
+      enum: ["free", "pro", "vip", "business"],
+      default: "free",
+    },
+    subscriptionStatus: {
+      type: String,
+      enum: ["active", "cancelled", "expired", "past_due"],
+      default: "active",
+    },
+    subscriptionStartedAt: { type: Date, default: null },
+    subscriptionExpiresAt: { type: Date, default: null },
+    subscriptionCycle: { type: String, enum: ["monthly", "yearly"], default: "monthly" },
+    accountType: {
+      type: String,
+      enum: ["personal", "creator", "business"],
+      default: "personal",
+    },
+    planBadge: { type: String, default: null },
+    businessProfile: {
+      businessName: { type: String, default: null },
+      category: { type: String, default: null },
+      contactEmail: { type: String, default: null },
+      contactPhone: { type: String, default: null },
+      address: { type: String, default: null },
+      website: { type: String, default: null },
+      supportHours: { type: String, default: null },
+      quickReplies: [
+        {
+          shortcut: { type: String, required: true },
+          message: { type: String, required: true },
+        },
+      ],
+    },
+    aiUsageToday: {
+      date: { type: String, default: null },
+      count: { type: Number, default: 0 },
+    },
     role: { type: String, default: "user" },
     isPrivate: { type: Boolean, default: false },
     isDeactivated: { type: Boolean, default: false },
-    vaultPin: { type: String, default: null },
+    isSuspended: { type: Boolean, default: false },
+    suspensionReason: { type: String, default: null },
+    suspendedAt: { type: Date, default: null },
+    suspendedBy: { type: Schema.Types.ObjectId, ref: "User", default: null },
+    vaultPin: { type: String, default: null, select: false },
     followers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     following: [{ type: Schema.Types.ObjectId, ref: "User" }],
     closeFriends: [{ type: Schema.Types.ObjectId, ref: "User" }],
@@ -157,8 +238,8 @@ const UserSchema = new Schema<IUser>(
     restrictedUsers: [{ type: Schema.Types.ObjectId, ref: "User" }],
     mutedWords: [{ type: String }],
     twoFactorEnabled: { type: Boolean, default: false },
-    twoFactorSecret: { type: String, default: null },
-    twoFactorBackupCodes: [{ type: String }],
+    twoFactorSecret: { type: String, default: null, select: false },
+    twoFactorBackupCodes: { type: [String], default: [], select: false },
     sessions: [
       {
         id: { type: String, required: true },
@@ -269,7 +350,18 @@ const UserSchema = new Schema<IUser>(
       submittedAt: { type: Date },
     },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    toJSON: {
+      transform(_doc, ret: Record<string, any>) {
+        delete ret.passwordHash;
+        delete ret.vaultPin;
+        delete ret.twoFactorSecret;
+        delete ret.twoFactorBackupCodes;
+        return ret;
+      },
+    },
+  }
 );
 
 UserSchema.index({ username: 1 });

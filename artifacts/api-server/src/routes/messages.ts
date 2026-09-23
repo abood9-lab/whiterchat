@@ -252,10 +252,15 @@ router.patch("/conversations/:conversationId", requireAuth, async (req: AuthRequ
 router.post("/conversations/:conversationId/block", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const conv = await Conversation.findById(req.params.conversationId).catch(() => null);
   if (!conv) { res.status(404).json({ error: "Not found" }); return; }
-  if (conv.user1Id.toString() !== req.userId && conv.user2Id.toString() !== req.userId) {
+  if (conv.isGroup) {
+    res.status(400).json({ error: "Cannot block a group conversation. You can leave the group or block individual users." });
+    return;
+  }
+  if (conv.user1Id?.toString() !== req.userId && conv.user2Id?.toString() !== req.userId) {
     res.status(403).json({ error: "Not a participant" }); return;
   }
-  const otherId = conv.user1Id.toString() === req.userId ? conv.user2Id : conv.user1Id;
+  const otherId = conv.user1Id?.toString() === req.userId ? conv.user2Id : conv.user1Id;
+  if (!otherId) { res.status(400).json({ error: "Invalid conversation participants" }); return; }
   await User.findByIdAndUpdate(req.userId, { $addToSet: { blockedUsers: otherId } });
   const io = getIo(req);
   if (io) {
@@ -271,10 +276,15 @@ router.post("/conversations/:conversationId/block", requireAuth, async (req: Aut
 router.post("/conversations/:conversationId/unblock", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const conv = await Conversation.findById(req.params.conversationId).catch(() => null);
   if (!conv) { res.status(404).json({ error: "Not found" }); return; }
-  if (conv.user1Id.toString() !== req.userId && conv.user2Id.toString() !== req.userId) {
+  if (conv.isGroup) {
+    res.status(400).json({ error: "Cannot block/unblock a group conversation." });
+    return;
+  }
+  if (conv.user1Id?.toString() !== req.userId && conv.user2Id?.toString() !== req.userId) {
     res.status(403).json({ error: "Not a participant" }); return;
   }
-  const otherId = conv.user1Id.toString() === req.userId ? conv.user2Id : conv.user1Id;
+  const otherId = conv.user1Id?.toString() === req.userId ? conv.user2Id : conv.user1Id;
+  if (!otherId) { res.status(400).json({ error: "Invalid conversation participants" }); return; }
   await User.findByIdAndUpdate(req.userId, { $pull: { blockedUsers: otherId } });
   const io = getIo(req);
   if (io) {
@@ -292,10 +302,15 @@ router.post("/conversations/:conversationId/timeout", requireAuth, async (req: A
   const { duration } = req.body as { duration?: string | null }; // "15m"|"1h"|"24h"|"7d"|null
   const conv = await Conversation.findById(req.params.conversationId).catch(() => null);
   if (!conv) { res.status(404).json({ error: "Not found" }); return; }
-  if (conv.user1Id.toString() !== req.userId && conv.user2Id.toString() !== req.userId) {
+  if (conv.isGroup) {
+    res.status(400).json({ error: "Timeout is only supported in direct conversations." });
+    return;
+  }
+  if (conv.user1Id?.toString() !== req.userId && conv.user2Id?.toString() !== req.userId) {
     res.status(403).json({ error: "Not a participant" }); return;
   }
-  const otherId = conv.user1Id.toString() === req.userId ? conv.user2Id : conv.user1Id;
+  const otherId = conv.user1Id?.toString() === req.userId ? conv.user2Id : conv.user1Id;
+  if (!otherId) { res.status(400).json({ error: "Invalid conversation participants" }); return; }
   // Remove any existing timeout for the other user first
   await Conversation.findByIdAndUpdate(conv._id, { $pull: { timeoutEntries: { userId: otherId } } });
   if (!duration) {
@@ -332,7 +347,12 @@ router.patch("/conversations/:conversationId/disappear", requireAuth, async (req
   if (!valid.includes(disappearAfter ?? null)) { res.status(400).json({ error: "Invalid disappearAfter value" }); return; }
   const conv = await Conversation.findById(req.params.conversationId).catch(() => null);
   if (!conv) { res.status(404).json({ error: "Not found" }); return; }
-  if (conv.user1Id.toString() !== req.userId && conv.user2Id.toString() !== req.userId) {
+  
+  const isParticipant = conv.isGroup
+    ? (conv.memberIds ?? []).some((id: mongoose.Types.ObjectId) => id.toString() === req.userId)
+    : (conv.user1Id?.toString() === req.userId || conv.user2Id?.toString() === req.userId);
+
+  if (!isParticipant) {
     res.status(403).json({ error: "Not a participant" }); return;
   }
   await Conversation.findByIdAndUpdate(conv._id, { disappearAfter: disappearAfter ?? null });
@@ -478,6 +498,15 @@ router.post("/conversations/:conversationId/messages", requireAuth, async (req: 
 
   // ── Group conversation checks ─────────────────────────────────────────────
   if (conv.isGroup) {
+    if (conv.isDisabled) {
+      res.status(403).json({ error: conv.disabledReason || "This group has been suspended by administration." });
+      return;
+    }
+    const isBanned = (conv.bannedUserIds ?? []).some((id: mongoose.Types.ObjectId) => id.toString() === req.userId);
+    if (isBanned) {
+      res.status(403).json({ error: "You have been banned from this group." });
+      return;
+    }
     const isMember = (conv.memberIds ?? []).some((id: mongoose.Types.ObjectId) => id.toString() === req.userId);
     if (!isMember) { res.status(403).json({ error: "Not a group member" }); return; }
     if (conv.onlyAdminsCanSend) {
@@ -608,20 +637,31 @@ router.post("/messages/:messageId/forward", requireAuth, async (req: AuthRequest
   }
   const targetConv = await Conversation.findById(conversationId).catch(() => null);
   if (!targetConv) { res.status(404).json({ error: "Conversation not found" }); return; }
+  
   // Verify requester is a participant in the target conversation
-  if (targetConv.user1Id.toString() !== req.userId && targetConv.user2Id.toString() !== req.userId) {
+  const isTargetParticipant = targetConv.isGroup
+    ? (targetConv.memberIds ?? []).some((id: mongoose.Types.ObjectId) => id.toString() === req.userId)
+    : (targetConv.user1Id?.toString() === req.userId || targetConv.user2Id?.toString() === req.userId);
+
+  if (!isTargetParticipant) {
     res.status(403).json({ error: "Not a participant in target conversation" }); return;
   }
-  // ── Block check (target conversation) ───────────────────────────────────
-  const fwdRecipientId = targetConv.user1Id.toString() === req.userId ? targetConv.user2Id : targetConv.user1Id;
-  const [fwdMeUser, fwdRecipientUser] = await Promise.all([User.findById(req.userId), User.findById(fwdRecipientId)]);
-  const fwdIBlocked = (fwdMeUser?.blockedUsers ?? []).some((id: mongoose.Types.ObjectId) => id.toString() === fwdRecipientId.toString());
-  const fwdTheyBlocked = (fwdRecipientUser?.blockedUsers ?? []).some((id: mongoose.Types.ObjectId) => id.toString() === req.userId);
-  if (fwdIBlocked || fwdTheyBlocked) { res.status(403).json({ error: "blocked" }); return; }
+
+  // ── Block check (target conversation if direct chat) ───────────────────────────────────
+  let fwdRecipientId: mongoose.Types.ObjectId | undefined;
+  if (!targetConv.isGroup && targetConv.user1Id && targetConv.user2Id) {
+    fwdRecipientId = targetConv.user1Id.toString() === req.userId ? targetConv.user2Id : targetConv.user1Id;
+    const [fwdMeUser, fwdRecipientUser] = await Promise.all([User.findById(req.userId), User.findById(fwdRecipientId)]);
+    const fwdIBlocked = (fwdMeUser?.blockedUsers ?? []).some((id: mongoose.Types.ObjectId) => id.toString() === fwdRecipientId!.toString());
+    const fwdTheyBlocked = (fwdRecipientUser?.blockedUsers ?? []).some((id: mongoose.Types.ObjectId) => id.toString() === req.userId);
+    if (fwdIBlocked || fwdTheyBlocked) { res.status(403).json({ error: "blocked" }); return; }
+  }
+
   // ── Timeout check (target conversation) ─────────────────────────────────
   const fwdNow = new Date();
   const fwdMyTimeout = (targetConv.timeoutEntries ?? []).find((e: any) => e.userId.toString() === req.userId && new Date(e.until) > fwdNow);
   if (fwdMyTimeout) { res.status(403).json({ error: "restricted", until: new Date(fwdMyTimeout.until).toISOString() }); return; }
+  
   const clientId = `fwd-${Date.now()}-${Math.random().toString(36).slice(2)}`;
   const newMsg = await Message.create({
     conversationId,
@@ -633,13 +673,19 @@ router.post("/messages/:messageId/forward", requireAuth, async (req: AuthRequest
     clientId,
   });
   await Conversation.findByIdAndUpdate(conversationId, { lastActivityAt: new Date() });
-  await Notification.create({ userId: fwdRecipientId, actorId: req.userId, type: "message" });
-  notifyUserPush(fwdRecipientId.toString(), req.userId!, "message").catch(() => {});
+
+  if (fwdRecipientId) {
+    await Notification.create({ userId: fwdRecipientId, actorId: req.userId, type: "message" });
+    notifyUserPush(fwdRecipientId.toString(), req.userId!, "message").catch(() => {});
+  }
+
   const msgData = serializeMessage(newMsg);
   const io = getIo(req);
   if (io) {
     io.to(`conversation:${conversationId}`).emit("new_message", msgData);
-    io.to(`user:${fwdRecipientId}`).emit("new_message", msgData);
+    if (fwdRecipientId) {
+      io.to(`user:${fwdRecipientId}`).emit("new_message", msgData);
+    }
   }
   res.status(201).json(msgData);
 });

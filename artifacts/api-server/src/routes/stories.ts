@@ -119,7 +119,11 @@ router.post("/stories/:storyId/view", requireAuth, async (req: AuthRequest, res)
 
 router.get("/stories/:storyId/viewers", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const story = await Story.findById(req.params.storyId).catch(() => null);
-  if (!story) { res.json([]); return; }
+  if (!story) { res.status(404).json({ error: "Story not found" }); return; }
+  if (story.authorId.toString() !== req.userId) {
+    res.status(403).json({ error: "Forbidden: Only the story author can view story viewers." });
+    return;
+  }
   const users = await User.find({ _id: { $in: story.views } });
   res.json(await Promise.all(users.map(u => buildUserSummary(u, req.userId))));
 });

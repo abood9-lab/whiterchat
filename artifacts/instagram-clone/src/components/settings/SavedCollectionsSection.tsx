@@ -32,7 +32,7 @@ export function SavedCollectionsSection() {
   const fetchCollections = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const res = await fetch(apiUrl("/api/users/me/saved-collections"), {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -56,7 +56,7 @@ export function SavedCollectionsSection() {
     if (!newCollectionName.trim()) return;
     setIsCreating(true);
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const res = await fetch(apiUrl("/api/users/me/saved-collections"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -78,7 +78,7 @@ export function SavedCollectionsSection() {
 
   const handleDelete = async (id: string, name: string) => {
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       await fetch(apiUrl(`/api/users/me/saved-collections/${id}`), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },

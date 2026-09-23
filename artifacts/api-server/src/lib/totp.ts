@@ -84,6 +84,25 @@ export function computeHotp(secretBuffer: Buffer, counter: number): string {
 }
 
 /**
+ * Generates an RFC 6238 compliant 6-digit TOTP token for current timestamp
+ */
+export function generateTotpToken(secretBase32: string): string {
+  const secretBuffer = base32Decode(secretBase32);
+  const timeStep = 30;
+  const currentCounter = Math.floor(Date.now() / 1000 / timeStep);
+  return computeHotp(secretBuffer, currentCounter);
+}
+
+/**
+ * Generates cryptographically secure backup codes
+ */
+export function generateBackupCodes(count: number = 8): string[] {
+  return Array.from({ length: count }, () =>
+    crypto.randomBytes(4).toString("hex").toUpperCase().replace(/(.{4})/, "$1-")
+  );
+}
+
+/**
  * Verifies a 6-digit Google Authenticator TOTP token with +/- 1 time step tolerance (30 seconds window)
  */
 export function verifyTotpToken(token: string, secretBase32: string, windowSteps: number = 1): boolean {

@@ -221,7 +221,10 @@ export default function SetupProfile() {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center bg-background p-4">
       <div className="w-full max-w-lg">
-        <div className="mb-8 text-center">
+        <div className="mb-8 text-center flex flex-col items-center">
+          <div className="w-14 h-14 rounded-2xl bg-secondary/50 p-2 ring-1 ring-border/50 shadow-md flex items-center justify-center mb-3">
+            <img src="/logo.png?v=3" alt="WhiterChat Logo" className="w-full h-full object-contain rounded-xl" />
+          </div>
           <h1 className="font-serif text-4xl font-bold italic tracking-tighter mb-1">WhiterChat</h1>
           <p className="text-muted-foreground text-sm">Let's set up your profile</p>
         </div>

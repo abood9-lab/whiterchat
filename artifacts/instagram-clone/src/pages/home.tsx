@@ -93,8 +93,9 @@ export default function Home() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   // Separate own stories from others
-  const myStories = storiesData?.find((s) => s.user.id === user?.id);
-  const otherStories = storiesData?.filter((s) => s.user.id !== user?.id) ?? [];
+  const storiesList = Array.isArray(storiesData) ? storiesData : [];
+  const myStories = storiesList.find((s) => s.user?.id === user?.id);
+  const otherStories = storiesList.filter((s) => s.user?.id !== user?.id);
 
   const openViewer = (globalIdx: number) => {
     setViewerUserIdx(globalIdx);
@@ -102,8 +103,8 @@ export default function Home() {
   };
 
   const openMyStoryViewer = () => {
-    if (!storiesData) return;
-    const myIdx = storiesData.findIndex((s) => s.user.id === user?.id);
+    if (storiesList.length === 0) return;
+    const myIdx = storiesList.findIndex((s) => s.user.id === user?.id);
     if (myIdx >= 0) {
       setViewerUserIdx(myIdx);
       setViewerOpen(true);
@@ -111,7 +112,7 @@ export default function Home() {
   };
 
   const getGlobalIdx = (userId: string) => {
-    return storiesData?.findIndex((s) => s.user.id === userId) ?? 0;
+    return storiesList.findIndex((s) => s.user.id === userId);
   };
 
   const handleStorySuccess = () => {

@@ -28,6 +28,7 @@ import { VoicePlayer } from "@/components/chat/VoicePlayer";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { apiUrl } from "@/lib/api-url";
 
 interface MentionUser {
   id: string;
@@ -107,7 +108,7 @@ export function RichCommentComposer({
     }
 
     const timer = setTimeout(() => {
-      fetch(`/api/users/mention-search?q=${encodeURIComponent(mentionQuery)}`, {
+      fetch(apiUrl(`/api/users/mention-search?q=${encodeURIComponent(mentionQuery)}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
         .then((res) => res.json())

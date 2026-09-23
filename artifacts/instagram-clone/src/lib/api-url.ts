@@ -1,13 +1,17 @@
 /**
- * Resolve a relative "/api/..." path against the remote API base URL when
- * one is configured (e.g. a standalone deploy like Cloudflare Pages, where
- * the frontend and backend are not co-located under the same origin).
- *
- * In Replit dev, VITE_API_URL is unset, so this returns the path unchanged
- * and the platform's path-based router proxies it to the api-server artifact.
+ * Resolve relative API paths. Cloudflare Pages _worker.js tunnel proxies
+ * all "/api/*" requests directly to the Azure backend.
  */
-export function apiUrl(path: string): string {
+export function getApiBaseUrl(): string {
   const remoteApiUrl = import.meta.env.VITE_API_URL as string | undefined;
-  if (!remoteApiUrl) return path;
-  return `${remoteApiUrl.replace(/\/+$/, "")}${path}`;
+  if (remoteApiUrl) return remoteApiUrl.replace(/\/+$/, "");
+  return "";
 }
+
+export function apiUrl(path: string): string {
+  const base = getApiBaseUrl();
+  if (!base) return path;
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  return `${base}${cleanPath}`;
+}
+

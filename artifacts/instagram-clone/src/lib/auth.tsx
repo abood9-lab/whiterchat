@@ -30,9 +30,9 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-const TOKEN_KEY = "whiterchat_token";
-const REFRESH_KEY = "whiterchat_refresh_token";
-const ACCOUNTS_KEY = "whiterchat_saved_accounts";
+const TOKEN_KEY = "pixlr_token";
+const REFRESH_KEY = "pixlr_refresh_token";
+const ACCOUNTS_KEY = "pixlr_saved_accounts";
 
 // Keep a module-level ref to the latest token so the getter always returns
 // the most recent value without needing React state.

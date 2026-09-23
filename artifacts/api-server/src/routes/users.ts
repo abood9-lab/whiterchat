@@ -4,6 +4,7 @@ import { requireAuth, optionalAuth, type AuthRequest } from "../lib/auth";
 import { uploadBase64 } from "../lib/cloudinary";
 import { notifyUserPush } from "../lib/push";
 import { OnboardingService, STANDARD_TOPICS } from "../services/onboardingService";
+import { planService } from "../services/planService";
 import mongoose from "mongoose";
 
 const router: IRouter = Router();
@@ -19,6 +20,10 @@ export async function buildUserSummary(user: any, meId?: string) {
     fullName: user.fullName,
     avatarUrl: user.avatarUrl ?? null,
     isFollowing,
+    isVerified: user.isVerified ?? false,
+    subscriptionPlan: user.subscriptionPlan ?? "free",
+    planBadge: user.planBadge ?? null,
+    accountType: user.accountType ?? "personal",
   };
 }
 
@@ -68,6 +73,13 @@ export async function buildUserProfile(user: any, meId?: string) {
     profileCompleted: user.profileCompleted ?? false,
     isVerified: user.isVerified ?? false,
     role: user.role ?? "user",
+    subscriptionPlan: user.subscriptionPlan ?? "free",
+    subscriptionStatus: user.subscriptionStatus ?? "active",
+    subscriptionExpiresAt: user.subscriptionExpiresAt ? new Date(user.subscriptionExpiresAt).toISOString() : null,
+    subscriptionCycle: user.subscriptionCycle ?? "monthly",
+    accountType: user.accountType ?? "personal",
+    planBadge: user.planBadge ?? null,
+    businessProfile: user.accountType === "business" || user.subscriptionPlan === "business" ? (user.businessProfile ?? null) : (isMe ? (user.businessProfile ?? null) : null),
     isPrivate: user.isPrivate ?? user.privacySettings?.privateAccount ?? false,
     twoFactorEnabled: isMe ? (user.twoFactorEnabled ?? false) : undefined,
     postsCount,
@@ -183,7 +195,19 @@ router.patch("/users/me/profile", requireAuth, async (req: AuthRequest, res): Pr
   if (location !== undefined) updates.location = location;
   if (coverUrl !== undefined) updates.coverUrl = coverUrl;
   if (phoneNumber !== undefined) updates.phoneNumber = phoneNumber;
-  if (Array.isArray(customLinks)) updates.customLinks = customLinks;
+  if (Array.isArray(customLinks)) {
+    const existingUser = await User.findById(req.userId);
+    const maxLinks = await planService.getPlanLimit(existingUser, "maxCustomLinks", 2);
+    if (customLinks.length > maxLinks) {
+      res.status(400).json({
+        error: `Your current plan allows up to ${maxLinks} bio links. Upgrade for additional custom links.`,
+        maxAllowed: maxLinks,
+        upgradeRequired: true,
+      });
+      return;
+    }
+    updates.customLinks = customLinks;
+  }
   if (Array.isArray(interests)) updates.interests = interests;
   const user = await User.findByIdAndUpdate(req.userId, updates, { new: true });
   if (!user) { res.status(404).json({ error: "User not found" }); return; }

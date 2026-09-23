@@ -33,7 +33,7 @@ export const RADIUS_VALUES: Record<BorderRadius, string> = {
   round: "1.5rem",
 };
 
-export const THEME_EXTRAS_KEY = "whiterchat-theme-extras";
+export const THEME_EXTRAS_KEY = "pixlr-theme-extras";
 
 export function applyFontSize(size: FontSize) {
   document.documentElement.style.setProperty("--ui-font-size", FONT_SIZE_VALUES[size]);

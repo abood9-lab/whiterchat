@@ -91,7 +91,7 @@ export function SecuritySection() {
   const fetchSessions = async () => {
     setSessionsLoading(true);
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const res = await fetch(apiUrl("/api/users/me/sessions"), {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -108,7 +108,7 @@ export function SecuritySection() {
 
   const fetchAlerts = async () => {
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const res = await fetch(apiUrl("/api/users/me/security-alerts"), {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -167,7 +167,7 @@ export function SecuritySection() {
 
     setIsChangingPassword(true);
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const res = await fetch(apiUrl("/api/auth/change-password"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -192,7 +192,7 @@ export function SecuritySection() {
 
   const handleTerminateSession = async (sessionId: string) => {
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       await fetch(apiUrl(`/api/users/me/sessions/${sessionId}`), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -206,7 +206,7 @@ export function SecuritySection() {
 
   const handleLogoutAllOther = async () => {
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       await fetch(apiUrl("/api/users/me/sessions"), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
@@ -220,7 +220,7 @@ export function SecuritySection() {
 
   const handleStart2FASetup = async () => {
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const res = await fetch(apiUrl("/api/users/me/2fa/setup"), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -242,7 +242,7 @@ export function SecuritySection() {
     e.preventDefault();
     setIsVerifying2FA(true);
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const res = await fetch(apiUrl("/api/users/me/2fa/verify"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -273,7 +273,7 @@ export function SecuritySection() {
     e.preventDefault();
     setIsDisabling2FA(true);
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const res = await fetch(apiUrl("/api/users/me/2fa/disable"), {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

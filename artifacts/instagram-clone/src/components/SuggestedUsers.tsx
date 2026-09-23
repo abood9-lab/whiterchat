@@ -75,7 +75,8 @@ export function SuggestedUsers() {
     queryClient.invalidateQueries({ queryKey: getGetSuggestedUsersQueryKey() });
   };
 
-  if (isLoading || !suggestions || suggestions.length === 0) return null;
+  const list = Array.isArray(suggestions) ? (suggestions as SuggestedUser[]) : [];
+  if (isLoading || list.length === 0) return null;
 
   return (
     <div className="w-80 shrink-0 hidden xl:block">
@@ -112,7 +113,7 @@ export function SuggestedUsers() {
           </div>
 
           <div className="space-y-1">
-            {(suggestions as SuggestedUser[]).slice(0, 5).map(u => (
+            {list.slice(0, 5).map(u => (
               <SuggestedUserRow key={u.id} user={u} onFollowed={handleFollowed} />
             ))}
           </div>

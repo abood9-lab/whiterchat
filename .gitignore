@@ -6,3 +6,10 @@ coverage/
 *.log
 .env*
 !.env.example
+node-compile-cache/
+.replit
+.3e7e7*
+untitled.tsx
+attached_assets/*.txt
+
+

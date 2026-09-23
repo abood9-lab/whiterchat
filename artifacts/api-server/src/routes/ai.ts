@@ -13,6 +13,7 @@ import {
   Note,
 } from "@workspace/db";
 import mongoose from "mongoose";
+import { planService } from "../services/planService";
 
 const router: IRouter = Router();
 
@@ -444,6 +445,18 @@ router.post("/ai/stream-chat", requireAuth, aiLimiter, async (req: AuthRequest, 
 
   if (!message?.trim() && (!attachments || attachments.length === 0)) {
     res.status(400).json({ error: "Message or attachment is required" });
+    return;
+  }
+
+  // Quota check per subscription plan
+  try {
+    await planService.checkAndIncrementAiUsage(req.userId!);
+  } catch (quotaErr: any) {
+    res.status(429).json({
+      error: quotaErr.message,
+      code: "AI_QUOTA_EXCEEDED",
+      upgradeRequired: true,
+    });
     return;
   }
 

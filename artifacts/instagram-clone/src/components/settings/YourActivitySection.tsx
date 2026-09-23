@@ -25,7 +25,7 @@ export function YourActivitySection() {
   const fetchActivity = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       const res = await fetch(apiUrl("/api/users/me/activity-log"), {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -51,7 +51,7 @@ export function YourActivitySection() {
 
   const handleClearSearches = async () => {
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = localStorage.getItem("pixlr_token") ?? "";
       await fetch(apiUrl("/api/users/me/search-history"), {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },

@@ -53,7 +53,7 @@ export default function Explore() {
 
   // Fetch search history on mount
   useEffect(() => {
-    const token = localStorage.getItem("whiterchat_token");
+    const token = localStorage.getItem("pixlr_token");
     if (token) {
       fetch(apiUrl("/api/search/history"), {
         headers: { Authorization: `Bearer ${token}` },
@@ -67,7 +67,7 @@ export default function Explore() {
   // Autocomplete suggestions
   useEffect(() => {
     if (searchQuery.trim().length > 0 && searchQuery.trim().length < 3) {
-      const token = localStorage.getItem("whiterchat_token");
+      const token = localStorage.getItem("pixlr_token");
       fetch(apiUrl(`/api/search/autocomplete?q=${encodeURIComponent(searchQuery.trim())}`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       })
@@ -88,7 +88,7 @@ export default function Explore() {
     }
 
     setSearchLoading(true);
-    const token = localStorage.getItem("whiterchat_token");
+    const token = localStorage.getItem("pixlr_token");
     fetch(apiUrl(`/api/search/unified?q=${encodeURIComponent(debouncedQuery)}&limit=30`), {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
@@ -114,7 +114,7 @@ export default function Explore() {
   } = useInfiniteQuery({
     queryKey: ["/api/explore/posts/infinite"],
     queryFn: async ({ pageParam = 1 }) => {
-      const token = localStorage.getItem("whiterchat_token");
+      const token = localStorage.getItem("pixlr_token");
       const res = await fetch(apiUrl(`/api/explore/posts?page=${pageParam}&limit=18`), {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
@@ -143,7 +143,7 @@ export default function Explore() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const clearAllHistory = async () => {
-    const token = localStorage.getItem("whiterchat_token");
+    const token = localStorage.getItem("pixlr_token");
     if (!token) return;
     setHistoryItems([]);
     try {
@@ -158,7 +158,7 @@ export default function Explore() {
 
   const deleteHistoryQuery = async (queryToDelete: string) => {
     setHistoryItems((prev) => prev.filter((item) => item.query !== queryToDelete));
-    const token = localStorage.getItem("whiterchat_token");
+    const token = localStorage.getItem("pixlr_token");
     if (!token) return;
     try {
       await fetch(apiUrl(`/api/search/history/${encodeURIComponent(queryToDelete)}`), {

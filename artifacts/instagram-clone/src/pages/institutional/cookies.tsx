@@ -11,7 +11,7 @@ export default function CookiePolicyPage() {
   const { toast } = useToast();
 
   const resetCookies = () => {
-    localStorage.removeItem("whiterchat_cookie_consent");
+    localStorage.removeItem("pixlr_cookie_consent");
     toast({
       title: t("Cookie Preferences Reset", "تمت إعادة تعيين تفضيلات الكوكيز"),
       description: t("The preference banner will appear on your next page refresh.", "ستظهر نافذة التفضيلات مجددًا عند تحديث الصفحة."),
@@ -32,13 +32,13 @@ export default function CookiePolicyPage() {
       expiry: t("Persistent", "دائم محليًا"),
     },
     {
-      name: "whiterchat_lang",
+      name: "pixlr_lang",
       category: t("Preferences", "تفضيلات اللغة"),
       purpose: t("Stores your selected language (English or Arabic RTL).", "حفظ لغة الواجهة المختارة (الإنجليزية أو العربية)."),
       expiry: t("Persistent", "دائم محليًا"),
     },
     {
-      name: "whiterchat_cookie_consent",
+      name: "pixlr_cookie_consent",
       category: t("Essential Compliance", "الامتثال والخصوصية"),
       purpose: t("Records your explicit choices regarding optional cookie telemetry.", "حفظ خياراتك المسجلة بخصوص تفضيلات الكوكيز والخصوصية."),
       expiry: t("1 Year", "سنة واحدة"),

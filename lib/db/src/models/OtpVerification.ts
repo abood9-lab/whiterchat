@@ -10,9 +10,11 @@ export interface IOtpVerification extends Document {
     fullName?: string;
     passwordHash?: string;
     newEmail?: string;
+    resetTokenHash?: string;
   };
   expiresAt: Date;
   attempts: number;
+  lastSentAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -27,9 +29,11 @@ const OtpVerificationSchema = new Schema<IOtpVerification>(
       fullName: { type: String },
       passwordHash: { type: String },
       newEmail: { type: String },
+      resetTokenHash: { type: String },
     },
     expiresAt: { type: Date, required: true },
     attempts: { type: Number, default: 0 },
+    lastSentAt: { type: Date, default: Date.now },
   },
   { timestamps: true }
 );
