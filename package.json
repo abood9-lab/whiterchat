@@ -5,10 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --alias:@workspace/db=./lib/db/src/index.ts --alias:@workspace/api-zod=./lib/api-zod/src/index.ts --packages=external --sourcemap --outfile=dist/server.cjs",
+    "build": "vite build && npm run build:backend",
+    "build:frontend": "vite build",
+    "build:backend": "esbuild server.ts --bundle --platform=node --format=cjs --alias:@workspace/db=./lib/db/src/index.ts --alias:@workspace/api-zod=./lib/api-zod/src/index.ts --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "clean": "rm -rf dist",
     "lint": "tsc --noEmit",
     "test:security": "tsx scripts/src/security-suite.ts",
     "test:verify": "tsx scripts/src/verify-production-systems.ts"

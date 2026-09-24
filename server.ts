@@ -1,6 +1,7 @@
 import express from "express";
 import { createServer } from "http";
 import path from "path";
+import fs from "fs";
 import { Server as SocketIOServer } from "socket.io";
 import { createServer as createViteServer } from "vite";
 import app from "./artifacts/api-server/src/app";
@@ -8,7 +9,7 @@ import { logger } from "./artifacts/api-server/src/lib/logger";
 import { verifyToken } from "./artifacts/api-server/src/lib/auth";
 import { connectDB } from "./lib/db/src/index";
 
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 
 async function startServer() {
   const httpServer = createServer(app);
@@ -19,6 +20,7 @@ async function startServer() {
     /\.run\.app$/,
     /\.aistudio\.google\.com$/,
     /\.googleusercontent\.com$/,
+    /\.onrender\.com$/,
   ];
   if (process.env.REPLIT_DOMAINS) {
     process.env.REPLIT_DOMAINS.split(",").forEach((d) =>
@@ -34,7 +36,15 @@ async function startServer() {
       .filter(Boolean)
       .forEach((o) => socketAllowedOrigins.push(o));
   }
+  if (process.env.FRONTEND_URL) {
+    socketAllowedOrigins.push(process.env.FRONTEND_URL.trim());
+  }
+  if (process.env.CORS_ORIGIN) {
+    process.env.CORS_ORIGIN.split(",").map((o) => o.trim()).filter(Boolean).forEach((o) => socketAllowedOrigins.push(o));
+  }
   socketAllowedOrigins.push(/^https:\/\/([a-z0-9-]+\.)*pages\.dev$/);
+  socketAllowedOrigins.push(/^https:\/\/([a-z0-9-]+\.)*whiterchat\.me$/);
+  socketAllowedOrigins.push("https://whiterchat.me");
 
   const io = new SocketIOServer(httpServer, {
     cors: {
@@ -244,10 +254,24 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (_req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+    const indexPath = path.join(distPath, "index.html");
+    if (fs.existsSync(indexPath)) {
+      app.use(express.static(distPath));
+      app.get("*", (_req, res) => {
+        res.sendFile(indexPath);
+      });
+    } else {
+      // Standalone backend mode (e.g., Render hosting backend only, Cloudflare hosting frontend)
+      app.get("/", (_req, res) => {
+        res.json({
+          status: "online",
+          service: "WhiterChat API & WebSocket Backend",
+          version: "1.0.0",
+          docs: "/api/health",
+          timestamp: new Date().toISOString(),
+        });
+      });
+    }
   }
 
   httpServer.listen(PORT, "0.0.0.0", () => {

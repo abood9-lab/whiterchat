@@ -43,6 +43,7 @@ const allowedOrigins: (string | RegExp)[] = [
   /\.run\.app$/,
   /\.aistudio\.google\.com$/,
   /\.googleusercontent\.com$/,
+  /\.onrender\.com$/,
 ];
 if (process.env.REPLIT_DOMAINS) {
   process.env.REPLIT_DOMAINS.split(",").forEach((d) => {
@@ -58,9 +59,20 @@ if (process.env.FRONTEND_ORIGINS) {
     .filter(Boolean)
     .forEach((o) => allowedOrigins.push(o));
 }
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL.trim());
+}
+if (process.env.CORS_ORIGIN) {
+  process.env.CORS_ORIGIN.split(",")
+    .map((o) => o.trim())
+    .filter(Boolean)
+    .forEach((o) => allowedOrigins.push(o));
+}
 // Cloudflare Pages preview/production URLs (e.g. https://whiterchat.pages.dev,
-// https://<hash>.whiterchat.pages.dev) until a custom domain is attached.
+// https://<hash>.whiterchat.pages.dev) and custom domains
 allowedOrigins.push(/^https:\/\/([a-z0-9-]+\.)*pages\.dev$/);
+allowedOrigins.push(/^https:\/\/([a-z0-9-]+\.)*whiterchat\.me$/);
+allowedOrigins.push("https://whiterchat.me");
 
 app.use(
   cors({
