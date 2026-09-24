@@ -1,0 +1,6 @@
+{
+  "name": "WhiterChat – Photo & Video Sharing Social Network",
+  "description": "Create an account or log in to WhiterChat - Share what you're into with the people who get you. Explore viral reels, creator posts, stories, and real-time messaging.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
