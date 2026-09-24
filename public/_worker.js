@@ -4,8 +4,8 @@ export default {
 
     // 1. API and Socket.IO Proxy to Render Backend
     if (url.pathname.startsWith('/api') || url.pathname.startsWith('/socket.io')) {
-      // BACKEND_URL can be set in Cloudflare Pages Environment Variables (e.g. https://whiterchat-backend.onrender.com)
-      const backendBase = env.BACKEND_URL || env.VITE_API_URL || 'https://backend.whiterchat.me';
+      // BACKEND_URL can be set in Cloudflare Pages Environment Variables (defaults to https://whiterchat.onrender.com)
+      const backendBase = env.BACKEND_URL || env.VITE_API_URL || 'https://whiterchat.onrender.com';
       const targetUrl = new URL(url.pathname + url.search, backendBase);
 
       const headers = new Headers(request.headers);
