@@ -5,6 +5,19 @@
 export function getApiBaseUrl(): string {
   const remoteApiUrl = import.meta.env.VITE_API_URL as string | undefined;
   if (remoteApiUrl) return remoteApiUrl.replace(/\/+$/, "");
+
+  // Auto-connect to live Render backend when running on the production domain or Cloudflare Pages
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (
+      host === "whiterchat.me" ||
+      host === "www.whiterchat.me" ||
+      host.endsWith(".pages.dev")
+    ) {
+      return "https://whiterchat.onrender.com";
+    }
+  }
+
   return "";
 }
 
