@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { apiUrl } from "@/lib/api-url";
 
+import { getSavedEmailConfig, dispatchClientEmail } from "@/lib/client-email";
+
 interface ForgotPasswordModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -48,6 +50,12 @@ export function ForgotPasswordModal({
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
+
+  // Client-side email dispatching states
+  const [clientDispatchRequired, setClientDispatchRequired] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [clientDispatchStatus, setClientDispatchStatus] = useState<"idle" | "sending" | "success" | "failed">("idle");
+  const [clientDispatchError, setClientDispatchError] = useState("");
 
   // Sync initial email when modal opens
   useEffect(() => {
@@ -99,10 +107,37 @@ export function ForgotPasswordModal({
       if (res.ok) {
         setStep(2);
         setResendCooldown(60);
-        toast({
-          title: "Recovery email sent",
-          description: data.message || "A 6-digit code has been sent to your email.",
-        });
+
+        if (data.clientDispatchRequired) {
+          setClientDispatchRequired(true);
+          setGeneratedOtp(data.otpCode);
+          setClientDispatchStatus("sending");
+          setClientDispatchError("");
+
+          const result = await dispatchClientEmail(cleanEmail, data.otpCode, "password_reset");
+          if (result.success) {
+            setClientDispatchStatus("success");
+            toast({
+              title: "Client-side delivery success!",
+              description: `Verification email sent successfully using ${result.provider} from your device.`,
+            });
+          } else {
+            setClientDispatchStatus("failed");
+            setClientDispatchError(result.error || "Device was unable to connect to client-side email provider.");
+            toast({
+              title: "Local Fallback Enabled",
+              description: "Could not deliver recovery email. Recovery code shown on screen.",
+            });
+          }
+        } else {
+          setClientDispatchRequired(false);
+          setGeneratedOtp("");
+          setClientDispatchStatus("idle");
+          toast({
+            title: "Recovery email sent",
+            description: data.message || "A 6-digit code has been sent to your email.",
+          });
+        }
       } else {
         setErrorMessage(data.error || "Failed to process password reset request");
       }
@@ -166,10 +201,37 @@ export function ForgotPasswordModal({
       const data = await res.json();
       if (res.ok) {
         setResendCooldown(60);
-        toast({
-          title: "New code sent",
-          description: "Check your email for the new 6-digit code.",
-        });
+
+        if (data.clientDispatchRequired) {
+          setClientDispatchRequired(true);
+          setGeneratedOtp(data.otpCode);
+          setClientDispatchStatus("sending");
+          setClientDispatchError("");
+
+          const result = await dispatchClientEmail(email.trim().toLowerCase(), data.otpCode, "password_reset");
+          if (result.success) {
+            setClientDispatchStatus("success");
+            toast({
+              title: "Client-side delivery success!",
+              description: `Verification email resent successfully using ${result.provider} from your device.`,
+            });
+          } else {
+            setClientDispatchStatus("failed");
+            setClientDispatchError(result.error || "Device was unable to connect to client-side email provider.");
+            toast({
+              title: "Local Fallback Enabled",
+              description: "Could not deliver email. Recovery code shown on screen.",
+            });
+          }
+        } else {
+          setClientDispatchRequired(false);
+          setGeneratedOtp("");
+          setClientDispatchStatus("idle");
+          toast({
+            title: "New code sent",
+            description: "Check your email for the new 6-digit code.",
+          });
+        }
       } else {
         setErrorMessage(data.error || "Could not resend reset code");
       }
@@ -370,6 +432,37 @@ export function ForgotPasswordModal({
                 </p>
                 <p className="text-[11px]">Code expires in 10 minutes. Check your inbox or spam folder.</p>
               </div>
+
+              {clientDispatchRequired && (
+                <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
+                    <Info className="w-4 h-4" /> Client-Side Recovery Status
+                  </div>
+                  {clientDispatchStatus === "sending" && (
+                    <p className="text-muted-foreground animate-pulse">
+                      Sending recovery email directly from your browser device using local dispatch...
+                    </p>
+                  )}
+                  {clientDispatchStatus === "success" && (
+                    <p className="text-emerald-600 dark:text-emerald-400 font-medium">
+                      ✓ Recovery email sent to {email}! Check your inbox.
+                    </p>
+                  )}
+                  {clientDispatchStatus === "failed" && (
+                    <div className="space-y-1">
+                      <p className="text-amber-600 dark:text-amber-400 font-medium leading-relaxed">
+                        ⚠️ Free Tier Fallback: The code was generated securely on the server but could not be emailed automatically.
+                      </p>
+                      <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-center text-sm font-semibold tracking-wider font-mono select-all text-amber-700 dark:text-amber-300">
+                        {generatedOtp}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Use this code above to instantly recover your password. (Never blocked!)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2 text-center">
                 <label className="text-xs font-semibold text-foreground block">

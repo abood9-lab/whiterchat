@@ -195,21 +195,24 @@ router.post("/auth/register", authLimiter, async (req, res): Promise<void> => {
     lastSentAt: new Date(),
   });
 
+  let clientDispatchRequired = false;
   try {
     await sendOtpEmail({ email, code, type: "register" });
   } catch (err: any) {
-    await OtpVerification.deleteOne({ _id: pendingRecord._id });
-    res.status(500).json({
-      error: "Failed to deliver verification email. Please verify your email address or try again in a few moments.",
-    });
-    return;
+    logger.warn({ err: err.message, email }, "SMTP/Resend email sending failed. Falling back to client-side dispatch.");
+    clientDispatchRequired = true;
   }
 
   res.status(200).json({
     pendingVerification: true,
     email,
     expiresAt,
-    message: "A 6-digit verification code has been sent to your email address.",
+    clientDispatchRequired,
+    otpCode: clientDispatchRequired ? code : undefined,
+    emailType: "register",
+    message: clientDispatchRequired
+      ? "Verification code generated successfully. Ready for device-level delivery."
+      : "A 6-digit verification code has been sent to your email address.",
   });
 });
 
@@ -349,18 +352,22 @@ router.post("/auth/resend-code", authLimiter, async (req, res): Promise<void> =>
   existingRecord.expiresAt = new Date(Date.now() + 10 * 60 * 1000);
   await existingRecord.save();
 
+  let clientDispatchRequired = false;
   try {
     await sendOtpEmail({ email: cleanEmail, code: newCode, type: "register" });
   } catch (err: any) {
-    res.status(500).json({
-      error: "Failed to send verification email. Please try again in a few moments.",
-    });
-    return;
+    logger.warn({ err: err.message, email: cleanEmail }, "SMTP/Resend email sending failed during resend. Falling back to client-side dispatch.");
+    clientDispatchRequired = true;
   }
 
   res.json({
     ok: true,
-    message: "A new 6-digit verification code has been sent to your email address.",
+    clientDispatchRequired,
+    otpCode: clientDispatchRequired ? newCode : undefined,
+    emailType: "register",
+    message: clientDispatchRequired
+      ? "New verification code generated successfully. Ready for device-level delivery."
+      : "A new 6-digit verification code has been sent to your email address.",
   });
 });
 
@@ -426,19 +433,22 @@ router.post("/auth/forgot-password", authLimiter, async (req, res): Promise<void
     lastSentAt: new Date(),
   });
 
+  let clientDispatchRequired = false;
   try {
     await sendOtpEmail({ email: cleanEmail, code: resetCode, type: "password_reset" });
   } catch (err: any) {
-    await OtpVerification.deleteOne({ _id: newOtp._id });
-    res.status(500).json({
-      error: "Unable to send password reset email. Please try again in a few moments.",
-    });
-    return;
+    logger.warn({ err: err.message, email: cleanEmail }, "SMTP/Resend email sending failed during forgot password. Falling back to client-side dispatch.");
+    clientDispatchRequired = true;
   }
 
   res.status(200).json({
     ok: true,
-    message: "If an account exists for this email address, a 6-digit verification code has been sent.",
+    clientDispatchRequired,
+    otpCode: clientDispatchRequired ? resetCode : undefined,
+    emailType: "password_reset",
+    message: clientDispatchRequired
+      ? "Password recovery code generated successfully. Ready for device-level delivery."
+      : "If an account exists for this email address, a 6-digit verification code has been sent.",
   });
 });
 

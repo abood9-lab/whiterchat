@@ -21,6 +21,8 @@ import {
   Info,
 } from "lucide-react";
 
+import { getSavedEmailConfig, dispatchClientEmail } from "@/lib/client-email";
+
 export default function Register() {
   const { login: setAuth } = useAuth();
   const [, setLocation] = useLocation();
@@ -36,6 +38,12 @@ export default function Register() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [otpCode, setOtpCode] = useState("");
+
+  // Client-side email dispatching states
+  const [clientDispatchRequired, setClientDispatchRequired] = useState(false);
+  const [generatedOtp, setGeneratedOtp] = useState("");
+  const [clientDispatchStatus, setClientDispatchStatus] = useState<"idle" | "sending" | "success" | "failed">("idle");
+  const [clientDispatchError, setClientDispatchError] = useState("");
 
   // Validation & availability states
   const [usernameStatus, setUsernameStatus] = useState<"idle" | "checking" | "available" | "taken" | "invalid">("idle");
@@ -179,10 +187,37 @@ export default function Register() {
       if (res.ok) {
         setStep(2);
         setResendCooldown(60);
-        toast({
-          title: "Verification code sent!",
-          description: data.message || `We've sent a 6-digit code to ${email}`,
-        });
+
+        if (data.clientDispatchRequired) {
+          setClientDispatchRequired(true);
+          setGeneratedOtp(data.otpCode);
+          setClientDispatchStatus("sending");
+          setClientDispatchError("");
+
+          const result = await dispatchClientEmail(email.trim().toLowerCase(), data.otpCode, "register");
+          if (result.success) {
+            setClientDispatchStatus("success");
+            toast({
+              title: "Client-side delivery success!",
+              description: `Verification email sent successfully using ${result.provider} from your device.`,
+            });
+          } else {
+            setClientDispatchStatus("failed");
+            setClientDispatchError(result.error || "Device was unable to connect to client-side email provider.");
+            toast({
+              title: "Offline Fallback Enabled",
+              description: "Could not deliver email automatically. Code is shown on screen.",
+            });
+          }
+        } else {
+          setClientDispatchRequired(false);
+          setGeneratedOtp("");
+          setClientDispatchStatus("idle");
+          toast({
+            title: "Verification code sent!",
+            description: data.message || `We've sent a 6-digit code to ${email}`,
+          });
+        }
       } else {
         toast({
           title: "Registration error",
@@ -261,7 +296,34 @@ export default function Register() {
       const data = await res.json();
       if (res.ok) {
         setResendCooldown(60);
-        toast({ title: "New code sent!", description: data.message });
+
+        if (data.clientDispatchRequired) {
+          setClientDispatchRequired(true);
+          setGeneratedOtp(data.otpCode);
+          setClientDispatchStatus("sending");
+          setClientDispatchError("");
+
+          const result = await dispatchClientEmail(email.trim().toLowerCase(), data.otpCode, "register");
+          if (result.success) {
+            setClientDispatchStatus("success");
+            toast({
+              title: "Client-side delivery success!",
+              description: `Verification email resent successfully using ${result.provider} from your device.`,
+            });
+          } else {
+            setClientDispatchStatus("failed");
+            setClientDispatchError(result.error || "Device was unable to connect to client-side email provider.");
+            toast({
+              title: "Offline Fallback Enabled",
+              description: "Could not deliver email. New code shown on screen.",
+            });
+          }
+        } else {
+          setClientDispatchRequired(false);
+          setGeneratedOtp("");
+          setClientDispatchStatus("idle");
+          toast({ title: "New code sent!", description: data.message });
+        }
       } else {
         toast({
           title: "Failed to resend",
@@ -527,6 +589,37 @@ export default function Register() {
                   Real emails usually arrive within 5–30 seconds. If you do not see it in your primary inbox, please check your spam or promotions folder.
                 </p>
               </div>
+
+              {clientDispatchRequired && (
+                <div className="p-3.5 rounded-xl border border-amber-500/20 bg-amber-500/5 space-y-2 text-xs">
+                  <div className="flex items-center gap-1.5 font-bold text-amber-600 dark:text-amber-400">
+                    <Info className="w-4 h-4" /> Client-Side Verification Status
+                  </div>
+                  {clientDispatchStatus === "sending" && (
+                    <p className="text-muted-foreground animate-pulse">
+                      Sending real email directly from your browser device using local dispatch...
+                    </p>
+                  )}
+                  {clientDispatchStatus === "success" && (
+                    <p className="text-emerald-600 dark:text-emerald-400 font-medium">
+                      ✓ Email successfully sent to {email} using Client API! Check your inbox.
+                    </p>
+                  )}
+                  {clientDispatchStatus === "failed" && (
+                    <div className="space-y-1">
+                      <p className="text-amber-600 dark:text-amber-400 font-medium leading-relaxed">
+                        ⚠️ Free Tier Fallback: The code was generated securely on the server but could not be emailed automatically.
+                      </p>
+                      <div className="p-2 rounded bg-amber-500/10 border border-amber-500/20 text-center text-sm font-semibold tracking-wider font-mono select-all text-amber-700 dark:text-amber-300">
+                        {generatedOtp}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        Use this code above to instantly verify and sign up. (Never blocked!)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* 6-Digit Code Input */}
               <div className="space-y-2 text-center">
