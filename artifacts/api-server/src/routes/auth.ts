@@ -5,6 +5,7 @@ import {
   generateRefreshToken, hashRefreshToken, refreshTokenExpiresAt,
   requireAuth, type AuthRequest,
 } from "../lib/auth";
+import { logger } from "../lib/logger";
 import { authLimiter, sessionLimiter } from "../lib/security";
 import { sendOtpEmail, generateOtpCode, hashOtpCode } from "../lib/email";
 import { verifyTotpToken } from "../lib/totp";

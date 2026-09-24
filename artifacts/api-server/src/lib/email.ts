@@ -169,6 +169,57 @@ If you did not request this, no action is needed and your account remains safe.
 export async function sendOtpEmail({ email, code, type }: SendOtpParams): Promise<{ success: boolean; provider: string }> {
   const { subject, html, text } = buildEmailTemplate(code, type);
 
+  // 0. Try Mailjet API if MAILJET_API_KEY is configured
+  const mailjetKey = process.env.MAILJET_API_KEY;
+  const mailjetSecret = process.env.MAILJET_API_SECRET || process.env.MAILJET_SECRET_KEY;
+  if (mailjetKey && mailjetSecret) {
+    try {
+      const auth = Buffer.from(`${mailjetKey}:${mailjetSecret}`).toString("base64");
+      
+      const senderEmail = process.env.EMAIL_FROM_EMAIL || process.env.GMAIL_USER || process.env.SMTP_USER || "noreply@whiterchat.me";
+      const senderName = process.env.EMAIL_FROM_NAME || "WhiterChat Security";
+
+      const res = await fetch("https://api.mailjet.com/v3.1/send", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Basic ${auth}`,
+        },
+        body: JSON.stringify({
+          Messages: [
+            {
+              From: {
+                Email: senderEmail,
+                Name: senderName,
+              },
+              To: [
+                {
+                  Email: email,
+                  Name: email.split("@")[0],
+                },
+              ],
+              Subject: subject,
+              TextPart: text,
+              HTMLPart: html,
+            },
+          ],
+        }),
+      });
+
+      if (res.ok) {
+        console.log(`[EMAIL-SERVICE] ✅ Sent verification email via Mailjet to ${email}`);
+        return { success: true, provider: "mailjet" };
+      }
+
+      const err = await res.text();
+      console.error(`[EMAIL-SERVICE] ❌ Mailjet error response: ${err}`);
+      throw new Error(`Mailjet provider failed: ${err}`);
+    } catch (error) {
+      console.error(`[EMAIL-SERVICE] ❌ Mailjet exception:`, error);
+      throw error;
+    }
+  }
+
   // 1. Try Gmail SMTP or configured custom SMTP transporter
   const transporter = getEmailTransporter();
   if (transporter) {
