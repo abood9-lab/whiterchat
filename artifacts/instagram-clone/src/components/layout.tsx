@@ -144,7 +144,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
             <div className="flex items-center gap-6">
               <Link href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
-                <img src="/logo.png" alt="WhiterChat" className="w-8 h-8 rounded-xl object-cover shadow-sm ring-1 ring-border" />
                 <span className="font-serif text-2xl sm:text-3xl font-bold italic tracking-tighter">
                   WhiterChat
                 </span>
@@ -249,7 +248,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex flex-col w-64 border-r border-border fixed h-full p-4 gap-4 bg-card z-50">
         <div className="px-4 py-6 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
-            <img src="/logo.png" alt="WhiterChat" className="w-8 h-8 rounded-xl object-cover shadow-sm ring-1 ring-border" />
             <span className="font-serif text-2xl sm:text-3xl font-bold italic tracking-tighter">
               WhiterChat
             </span>
@@ -429,7 +427,6 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {!hideMobileHeader && (
           <div className="md:hidden flex items-center justify-between p-4 border-b border-border bg-card sticky top-0 z-50">
             <Link href="/" className="flex items-center gap-2 hover:opacity-90 transition-opacity">
-              <img src="/logo.png" alt="WhiterChat" className="w-6 h-6 rounded-lg object-cover shadow-xs ring-1 ring-border" />
               <span className="font-serif text-lg font-bold italic tracking-tighter">WhiterChat</span>
             </Link>
             <div className="flex items-center gap-2">
