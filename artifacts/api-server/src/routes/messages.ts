@@ -237,15 +237,35 @@ router.patch("/conversations/:conversationId", requireAuth, async (req: AuthRequ
   const conv = await Conversation.findById(req.params.conversationId).catch(() => null);
   if (!conv) { res.status(404).json({ error: "Not found" }); return; }
   // IDOR guard: only participants may mutate their own conversation state
-  if (conv.user1Id.toString() !== req.userId && conv.user2Id.toString() !== req.userId) {
+  const isParticipant = conv.isGroup
+    ? (conv.memberIds ?? []).some((id: any) => id.toString() === req.userId)
+    : (conv.user1Id?.toString() === req.userId || conv.user2Id?.toString() === req.userId);
+  if (!isParticipant) {
     res.status(403).json({ error: "Not a participant" }); return;
   }
   const meId = new mongoose.Types.ObjectId(req.userId!);
-  if (action === "archive") await Conversation.findByIdAndUpdate(conv._id, { $addToSet: { isArchivedBy: meId } });
-  if (action === "unarchive") await Conversation.findByIdAndUpdate(conv._id, { $pull: { isArchivedBy: meId } });
-  if (action === "mute") await Conversation.findByIdAndUpdate(conv._id, { $addToSet: { isMutedBy: meId } });
-  if (action === "unmute") await Conversation.findByIdAndUpdate(conv._id, { $pull: { isMutedBy: meId } });
-  res.json({ ok: true });
+  if (action === "archive") {
+    await Conversation.findByIdAndUpdate(conv._id, { $addToSet: { isArchivedBy: meId } });
+  } else if (action === "unarchive") {
+    await Conversation.findByIdAndUpdate(conv._id, { $pull: { isArchivedBy: meId } });
+  } else if (action === "mute") {
+    await Conversation.findByIdAndUpdate(conv._id, { $addToSet: { isMutedBy: meId } });
+    if (!conv.isGroup) {
+      const otherId = conv.user1Id?.toString() === req.userId ? conv.user2Id : conv.user1Id;
+      if (otherId) {
+        await User.findByIdAndUpdate(req.userId, { $addToSet: { mutedUsers: otherId } });
+      }
+    }
+  } else if (action === "unmute") {
+    await Conversation.findByIdAndUpdate(conv._id, { $pull: { isMutedBy: meId } });
+    if (!conv.isGroup) {
+      const otherId = conv.user1Id?.toString() === req.userId ? conv.user2Id : conv.user1Id;
+      if (otherId) {
+        await User.findByIdAndUpdate(req.userId, { $pull: { mutedUsers: otherId } });
+      }
+    }
+  }
+  res.json({ ok: true, action });
 });
 
 // ── Block / Unblock ──────────────────────────────────────────────────────────
@@ -261,7 +281,10 @@ router.post("/conversations/:conversationId/block", requireAuth, async (req: Aut
   }
   const otherId = conv.user1Id?.toString() === req.userId ? conv.user2Id : conv.user1Id;
   if (!otherId) { res.status(400).json({ error: "Invalid conversation participants" }); return; }
+  const meId = new mongoose.Types.ObjectId(req.userId!);
   await User.findByIdAndUpdate(req.userId, { $addToSet: { blockedUsers: otherId } });
+  await User.findByIdAndUpdate(req.userId, { $pull: { following: otherId, followers: otherId } });
+  await User.findByIdAndUpdate(otherId, { $pull: { following: meId, followers: meId } });
   const io = getIo(req);
   if (io) {
     io.to(`conversation:${conv._id}`).emit("block_changed", {

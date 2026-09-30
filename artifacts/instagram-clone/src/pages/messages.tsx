@@ -249,7 +249,9 @@ export default function Messages() {
       if (tab === "requests" ? !c.isRequest : c.isRequest) return false;
       if (conversationFilter === "unread" && !(c.unreadCount > 0)) return false;
       if (conversationFilter === "groups" && !c.isGroup) return false;
-      if (conversationFilter === "archived" && !c.isArchived) return false;
+      if (conversationFilter === "archived") return Boolean(c.isArchived);
+      // For all/unread/groups: hide archived chats from main inbox list
+      if (c.isArchived) return false;
       if (!query) return true;
       const name = c.isGroup ? c.groupName : `${c.otherUser?.fullName ?? ""} ${c.otherUser?.username ?? ""}`;
       return `${name} ${c.lastMessage ?? ""}`.toLowerCase().includes(query);
@@ -1129,6 +1131,11 @@ export default function Messages() {
                     {safeAllConversations.filter((c: any) => c.unreadCount > 0).length}
                   </span>
                 )}
+                {value === "archived" && safeAllConversations.filter((c: any) => c.isArchived).length > 0 && (
+                  <span className="ml-1 tabular-nums">
+                    {safeAllConversations.filter((c: any) => c.isArchived).length}
+                  </span>
+                )}
               </button>
             ))}
             <span className="ml-auto shrink-0 self-center text-[10px] text-muted-foreground tabular-nums">
@@ -1173,12 +1180,50 @@ export default function Messages() {
           />
         )}
 
+        {/* Archived filter banner when in Archived view or quick entry when in All view */}
+        {conversationFilter === "archived" ? (
+          <div className="px-4 py-2.5 bg-muted/60 border-b border-border flex items-center justify-between text-xs font-semibold shrink-0">
+            <span className="flex items-center gap-1.5 text-foreground">
+              <Archive className="w-4 h-4 text-primary" /> Archived Chats ({conversations.length})
+            </span>
+            <button
+              onClick={() => setConversationFilter("all")}
+              className="text-primary hover:underline text-xs"
+            >
+              Back to Inbox
+            </button>
+          </div>
+        ) : (
+          conversationFilter === "all" && safeAllConversations.some((c: any) => c.isArchived) && (
+            <button
+              type="button"
+              onClick={() => setConversationFilter("archived")}
+              className="w-full flex items-center justify-between px-4 py-2.5 bg-secondary/40 hover:bg-secondary/70 border-b border-border text-xs font-semibold transition-colors shrink-0"
+            >
+              <div className="flex items-center gap-2">
+                <Archive className="w-4 h-4 text-primary" />
+                <span>Archived Chats</span>
+              </div>
+              <div className="flex items-center gap-1 text-muted-foreground font-normal">
+                <span>{safeAllConversations.filter((c: any) => c.isArchived).length}</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </div>
+            </button>
+          )
+        )}
+
         {/* Conversations list */}
         <ScrollArea className="flex-1">
           {conversations?.length === 0 && (
             <div className="text-center py-14 text-muted-foreground text-sm px-6">
               {tab === "requests"
                 ? "No message requests"
+                : conversationFilter === "archived"
+                ? "No archived conversations. You can archive any chat from the options menu."
+                : conversationFilter === "unread"
+                ? "No unread messages."
+                : conversationFilter === "groups"
+                ? "No group conversations yet."
                 : "No conversations yet. Tap the pencil icon to start one."}
             </div>
           )}

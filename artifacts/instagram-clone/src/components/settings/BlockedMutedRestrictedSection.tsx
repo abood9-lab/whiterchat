@@ -24,10 +24,12 @@ export function BlockedMutedRestrictedSection() {
   const [mutedUsers, setMutedUsers] = useState<ManagedUser[]>([]);
   const [restrictedUsers, setRestrictedUsers] = useState<ManagedUser[]>([]);
 
+  const getToken = () => localStorage.getItem("whiterchat_token") || localStorage.getItem("pixlr_token") || "";
+
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = getToken();
       const res = await fetch(apiUrl("/api/users/me/safety-lists"), {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -50,7 +52,7 @@ export function BlockedMutedRestrictedSection() {
 
   const handleUnblock = async (username: string) => {
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = getToken();
       const res = await fetch(apiUrl(`/api/users/${username}/unblock`), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -66,7 +68,7 @@ export function BlockedMutedRestrictedSection() {
 
   const handleUnmute = async (username: string) => {
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = getToken();
       const res = await fetch(apiUrl(`/api/users/${username}/unmute`), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -82,7 +84,7 @@ export function BlockedMutedRestrictedSection() {
 
   const handleUnrestrict = async (username: string) => {
     try {
-      const token = localStorage.getItem("whiterchat_token") ?? "";
+      const token = getToken();
       const res = await fetch(apiUrl(`/api/users/${username}/unrestrict`), {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },

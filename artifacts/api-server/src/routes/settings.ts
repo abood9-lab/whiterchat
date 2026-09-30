@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request } from "express";
-import { User, Post, Notification, Report } from "@workspace/db";
+import { User, Post, Notification, Report, Conversation, Message } from "@workspace/db";
 import { requireAuth, type AuthRequest, comparePassword, hashPassword } from "../lib/auth";
 import { uploadBase64 } from "../lib/cloudinary";
 import mongoose from "mongoose";
@@ -298,15 +298,88 @@ router.post("/users/me/2fa/backup-codes/regenerate", requireAuth, async (req: Au
   res.json({ ok: true, backupCodes: newBackupCodes, message: "New backup codes generated." });
 });
 
-// ── Muted & Restricted Accounts ──────────────────────────────────────────────
-router.get("/users/me/muted", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  const user = await User.findById(req.userId).populate("mutedUsers");
-  if (!user) { res.status(404).json({ error: "User not found" }); return; }
-  const muted = (user.mutedUsers as any[]) || [];
-  res.json(muted.map((u) => ({
+// ── Muted, Blocked & Restricted Accounts (Safety Lists) ────────────────────────
+router.get("/users/me/safety-lists", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const meId = new mongoose.Types.ObjectId(req.userId!);
+  const me = await User.findById(req.userId)
+    .populate("blockedUsers", "username fullName avatarUrl")
+    .populate("mutedUsers", "username fullName avatarUrl")
+    .populate("restrictedUsers", "username fullName avatarUrl");
+  if (!me) { res.status(404).json({ error: "User not found" }); return; }
+
+  // Include users from 1-on-1 conversations muted by me
+  const mutedConvs = await Conversation.find({
+    isGroup: false,
+    isMutedBy: meId,
+    $or: [{ user1Id: meId }, { user2Id: meId }],
+  });
+
+  const mutedUserIdsFromConvs: mongoose.Types.ObjectId[] = [];
+  for (const c of mutedConvs) {
+    const otherId = c.user1Id?.toString() === req.userId ? c.user2Id : c.user1Id;
+    if (otherId) mutedUserIdsFromConvs.push(otherId);
+  }
+
+  const existingMuted = (me.mutedUsers as any[]) || [];
+  const existingMutedIds = new Set(existingMuted.map((u: any) => u._id.toString()));
+  
+  let allMutedUsers = [...existingMuted];
+  const missingMutedIds = mutedUserIdsFromConvs.filter(id => !existingMutedIds.has(id.toString()));
+  if (missingMutedIds.length > 0) {
+    const extraMuted = await User.find(
+      { _id: { $in: missingMutedIds } },
+      "username fullName avatarUrl"
+    );
+    allMutedUsers.push(...extraMuted);
+  }
+
+  const mapUser = (u: any) => ({
     id: u._id.toString(),
     username: u.username,
-    fullName: u.fullName,
+    fullName: u.fullName || u.username,
+    avatarUrl: u.avatarUrl || null,
+  });
+
+  res.json({
+    blocked: ((me.blockedUsers as any[]) || []).map(mapUser),
+    muted: allMutedUsers.map(mapUser),
+    restricted: ((me.restrictedUsers as any[]) || []).map(mapUser),
+  });
+});
+
+router.get("/users/me/muted", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const meId = new mongoose.Types.ObjectId(req.userId!);
+  const user = await User.findById(req.userId).populate("mutedUsers", "username fullName avatarUrl");
+  if (!user) { res.status(404).json({ error: "User not found" }); return; }
+  
+  const mutedConvs = await Conversation.find({
+    isGroup: false,
+    isMutedBy: meId,
+    $or: [{ user1Id: meId }, { user2Id: meId }],
+  });
+
+  const mutedUserIdsFromConvs: mongoose.Types.ObjectId[] = [];
+  for (const c of mutedConvs) {
+    const otherId = c.user1Id?.toString() === req.userId ? c.user2Id : c.user1Id;
+    if (otherId) mutedUserIdsFromConvs.push(otherId);
+  }
+
+  const existingMuted = (user.mutedUsers as any[]) || [];
+  const existingMutedIds = new Set(existingMuted.map((u: any) => u._id.toString()));
+  let allMutedUsers = [...existingMuted];
+  const missingMutedIds = mutedUserIdsFromConvs.filter(id => !existingMutedIds.has(id.toString()));
+  if (missingMutedIds.length > 0) {
+    const extraMuted = await User.find(
+      { _id: { $in: missingMutedIds } },
+      "username fullName avatarUrl"
+    );
+    allMutedUsers.push(...extraMuted);
+  }
+
+  res.json(allMutedUsers.map((u) => ({
+    id: u._id.toString(),
+    username: u.username,
+    fullName: u.fullName || u.username,
     avatarUrl: u.avatarUrl || null,
   })));
 });
@@ -314,25 +387,53 @@ router.get("/users/me/muted", requireAuth, async (req: AuthRequest, res): Promis
 router.post("/users/:username/mute", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const target = await User.findOne({ username: req.params.username });
   if (!target) { res.status(404).json({ error: "User not found" }); return; }
+  const meId = new mongoose.Types.ObjectId(req.userId!);
+  
   await User.findByIdAndUpdate(req.userId, { $addToSet: { mutedUsers: target._id } });
+  // Also mute any 1-on-1 conversation
+  await Conversation.updateMany(
+    {
+      isGroup: false,
+      $or: [
+        { user1Id: meId, user2Id: target._id },
+        { user1Id: target._id, user2Id: meId },
+      ],
+    },
+    { $addToSet: { isMutedBy: meId } }
+  );
+
   res.json({ ok: true, isMuted: true });
 });
 
 router.post("/users/:username/unmute", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const target = await User.findOne({ username: req.params.username });
   if (!target) { res.status(404).json({ error: "User not found" }); return; }
+  const meId = new mongoose.Types.ObjectId(req.userId!);
+
   await User.findByIdAndUpdate(req.userId, { $pull: { mutedUsers: target._id } });
+  // Also unmute any 1-on-1 conversation
+  await Conversation.updateMany(
+    {
+      isGroup: false,
+      $or: [
+        { user1Id: meId, user2Id: target._id },
+        { user1Id: target._id, user2Id: meId },
+      ],
+    },
+    { $pull: { isMutedBy: meId } }
+  );
+
   res.json({ ok: true, isMuted: false });
 });
 
 router.get("/users/me/restricted", requireAuth, async (req: AuthRequest, res): Promise<void> => {
-  const user = await User.findById(req.userId).populate("restrictedUsers");
+  const user = await User.findById(req.userId).populate("restrictedUsers", "username fullName avatarUrl");
   if (!user) { res.status(404).json({ error: "User not found" }); return; }
   const restricted = (user.restrictedUsers as any[]) || [];
   res.json(restricted.map((u) => ({
     id: u._id.toString(),
     username: u.username,
-    fullName: u.fullName,
+    fullName: u.fullName || u.username,
     avatarUrl: u.avatarUrl || null,
   })));
 });
@@ -349,6 +450,65 @@ router.post("/users/:username/unrestrict", requireAuth, async (req: AuthRequest,
   if (!target) { res.status(404).json({ error: "User not found" }); return; }
   await User.findByIdAndUpdate(req.userId, { $pull: { restrictedUsers: target._id } });
   res.json({ ok: true, isRestricted: false });
+});
+
+// ── Archived Chats Endpoint ───────────────────────────────────────────────────
+router.get("/users/me/archive/chats", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const meId = new mongoose.Types.ObjectId(req.userId!);
+  const archivedConvs = await Conversation.find({
+    isArchivedBy: meId,
+    $or: [
+      { user1Id: meId },
+      { user2Id: meId },
+      { memberIds: meId },
+    ],
+  }).sort({ lastActivityAt: -1 });
+
+  const results = await Promise.all(
+    archivedConvs.map(async (conv) => {
+      let name = conv.groupName || "Group Chat";
+      let username: string | null = null;
+      let avatarUrl: string | null = conv.groupAvatarUrl ?? null;
+
+      if (!conv.isGroup) {
+        const otherId = conv.user1Id?.toString() === req.userId ? conv.user2Id : conv.user1Id;
+        if (otherId) {
+          const other = await User.findById(otherId, "username fullName avatarUrl");
+          if (other) {
+            name = other.fullName || other.username;
+            username = other.username;
+            avatarUrl = other.avatarUrl ?? null;
+          }
+        }
+      }
+
+      const lastMsg: any = await Message.findOne({
+        conversationId: conv._id,
+        isDeleted: false,
+      }).sort({ createdAt: -1 });
+
+      return {
+        id: conv._id.toString(),
+        isGroup: conv.isGroup,
+        name,
+        username,
+        avatarUrl,
+        lastMessage: lastMsg?.text || (lastMsg?.mediaType ? `[${lastMsg.mediaType}]` : "No messages yet"),
+        lastMessageDate: lastMsg?.createdAt || conv.lastActivityAt || conv.createdAt,
+        isArchived: true,
+      };
+    })
+  );
+
+  res.json(results);
+});
+
+router.post("/users/me/archive/chats/:id/restore", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  const meId = new mongoose.Types.ObjectId(req.userId!);
+  await Conversation.findByIdAndUpdate(req.params.id, {
+    $pull: { isArchivedBy: meId },
+  });
+  res.json({ ok: true, isArchived: false });
 });
 
 // ── Muted Words & Phrases ────────────────────────────────────────────────────
