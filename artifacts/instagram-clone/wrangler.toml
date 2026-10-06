@@ -1,0 +1,9 @@
+name = "whiterchat"
+compatibility_date = "2026-03-24"
+
+[site]
+bucket = "./dist"
+
+[vars]
+ENVIRONMENT = "production"
+VITE_API_URL = ""
